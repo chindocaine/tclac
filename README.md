@@ -1,8 +1,11 @@
-Внешний компонент кондиционеров TCL и аналогов для Home Assistant, используя ESPHome.
-Поддерживаются кондиционеры типа TAC-07CHSA и подобные. Увы, предположить точно получится подключить кондиционер или нет практически
-невозможно из-за огромного разбега в комплектациях: даже одна и та же модель, буквально буква-в-букву может, например, не иметь
-родного модуля WiFI, не иметь провода с USB разъемом или вовсе на плате управления может не быть впаян разъем UART.
-Однако, в целом, с пайкой или без, проверены следующие кондиционеры:
+_(Translated from Russian original by AI)_
+
+External component for TCL air conditioners and analogs for Home Assistant using ESPHome.
+TAC-07CHSA type air conditioners and similar are supported. Alas, it is almost impossible to predict exactly
+whether it will be possible to connect the air conditioner or not due to the huge variation in equipment:
+even the same model, literally letter-for-letter, may, for example, not have a native WiFI module,
+not have a cable with a USB connector, or the UART connector may not be soldered on the control board at all.
+However, in general, with or without soldering, the following air conditioners have been tested:
 - Axioma ASX09H1/ASB09H1
 - Ballu BSAI-12HN1_15Y
 - Ballu Discovery DC BSVI-07HN8
@@ -20,7 +23,7 @@
 - TCL ELI ONF 12
 - TCL Liferise ONF 09
 - TCL TAC-CT09INV/R
-- TCL One Inverter TACM-09HRID/E1 (возможно, иной порядок контактов)
+- TCL One Inverter TACM-09HRID/E1 (possible different pinout)
 - TCL TAC-07CHSA/TPG-W
 - TCL TAC-09CHSA/TPG
 - TCL TAC-09CHSA/DSEI-W
@@ -30,98 +33,98 @@
 - TCL TAC-XAL24I
 - TCL TPG31IHB
 
-Компоненту требуется HomeAsistant и ESPHome версии не ниже 2025.11.0 !
+The component requires Home Assistant and ESPHome version at least 2025.11.0!
 ____
-Это все для работы ИСКЛЮЧИТЕЛЬНО с HomeAsistant и ESPHome. Если Вас интересует другие варианты или возможность подключить кондиционер
-как-то иначе к каким-то другим системам, то мне есть что предложить:
-[Вариант для подключения через MQTT](https://github.com/pavel211/TCL-TAC-07-WiFi)
+This is all for working EXCLUSIVELY with Home Assistant and ESPHome. If you are interested in other options or the possibility of connecting the air conditioner
+some other way to some other systems, then I have something to offer:
+[Option for connection via MQTT](https://github.com/pavel211/TCL-TAC-07-WiFi)
 ____
-Статья по проекту находится [в моем канале на Дзене](https://dzen.ru/a/ZmdoyUNswXWnulhg)
+An article on the project is located [on my Zen channel](https://dzen.ru/a/ZmdoyUNswXWnulhg)
 
-Все работает, даже стабильно. Какие глюки видел- устранил, какие желания были- реализовал. Конечно, не все, хотелось бы еще спорткар..
-Используя компонент прямо сейчас Вы уже не рискуете душевным здоровьем, но внезапные глюки вполне могут напасть. Если вдруг такое
-случиться именно с Вами- прошу сообщить мне на Дзене, приму меры.
-Подробное описание будет постепенно появляться [в моем канале на Дзене](https://dzen.ru/a/ZmdoyUNswXWnulhg) , сюда буду выкладывать
-самое важное по мере сил.
+Everything works, even stably. Any bugs I saw- I fixed, any desires I had- I implemented. Of course, not everything, I would also like a sports car..
+Using the component right now you no longer risk your mental health, but sudden bugs may well attack. If suddenly this
+happens to you- please let me know on Zen, I will take measures.
+A detailed description will gradually appear [on my Zen channel](https://dzen.ru/a/ZmdoyUNswXWnulhg), I will post
+the most important things here as much as I can.
 ____
-Образец для конфигурации ESPHome в файле TCL-Conditioner.yaml , упрощенный вариант конфигурации- Sample_conf.yaml . Скачайте к себе
-и используйте в ESPHome, или просто скопируйте из него всю конфигурацию и вставьте вместо своей, однако, не забыв отредактировать
-все поля. В файле есть подсказки по каждому полю.
+Sample configuration for ESPHome is in the file TCL-Conditioner.yaml, a simplified version of the configuration is Sample_conf.yaml. Download it to your machine
+and use it in ESPHome, or just copy the entire configuration from it and paste it instead of yours, however, not forgetting to edit
+all fields. There are tips for each field in the file.
 
-Вопрос может возникнуть с 2 моментами: платформа (чип или модуль) и подгружаемые файлы. Попробую объяснить.
+Questions may arise with 2 moments: platform (chip or module) and included files. I'll try to explain.
 
-## Настройка платформы
-Платформа настраивается точно так же, как ей и полагается настраиваться в ESPHome. Например, так выглядит кусок кода для ESP-01S:
+## Platform Setup
+The platform is configured exactly as it is supposed to be configured in ESPHome. For example, this is what a piece of code for ESP-01S looks like:
 ```yaml
 esp8266:
   board: esp01_1m
 ```
-А вот так выглядит кусок кода для модуля Hommyn HDN/WFN-02-01 из первой статьи про кондиционер:
+And this is what a piece of code for the Hommyn HDN/WFN-02-01 module from the first article about the air conditioner looks like:
 ```yaml
 esp32:
   board: esp32-c3-devkitm-1
   framework:
     type: arduino
 ```
-Можно подключать платформу и через основной конфиг. Вот, предложенный [испытателем альфа-версии](https://github.com/kai-zer-ru), пример для Esp32 WROOM32:
+You can also connect the platform through the main config. Here is an example for Esp32 WROOM32, proposed by an [alpha version tester](https://github.com/kai-zer-ru):
 ```yaml
 esphome:
   platform: ESP32
   board: nodemcu-32s
 ```
-А это уже пример для wemos D1 Mini nodemcu esp12f:
+And this is an example for wemos D1 Mini nodemcu esp12f:
 ```yaml
 esphome:
   platform: ESP8266
   board: esp12e
 ```
-В общем- все то же самое, как и обычно, вариант под свою платформу легко ищется в интернете.
+In general- everything is the same as usual, the option for your platform is easily searched for on the Internet.
 
-**!Важно не забыть закомментировать или удалить строки других платформ!**
+**!It is important not to forget to comment out or delete lines of other platforms!**
 
-## Настройка подгружаемых файлов
-Для добавления или удаления определенных частей конфига я решил использовать подгружаемые файлы- они загружаются ESPHome автоматически,
-если у сервера с Home Assistant есть доступ в интернет. Такой подход позволяет редактировать и обновлять не весь конфиг куском,
-а частями, не трогая то, что работает.
-Еще один плюс- не нужно километровые куски кода комментировать или раскомментировать, не нужно знать разметку, нет необходимости считать
-проклятые пробелы и прочее. Все делается добавлением или удалением ссылок на файлы. Итак, вот так выглядит блок подгружаемых файлов:
+## Configuration of Included Files
+To add or remove certain parts of the config, I decided to use included files- they are loaded by ESPHome automatically,
+if the server with Home Assistant has internet access. This approach allows you to edit and update not the entire config as a block,
+but in parts, without touching what works.
+Another plus- you don't need to comment or uncomment kilometer-long pieces of code, you don't need to know the markup, there is no need to count
+cursed spaces and so on. Everything is done by adding or removing links to files. So, this is what the block of included files looks like:
 ```yaml
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tclac.git
     ref: master
     files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
+    # v - align lines with options at this position, otherwise it will glitch
+      - packages/core.yaml # The core of all things
       # - packages/leds.yaml
     refresh: 30s
 ```
-Все подгружаемые файлы указываются в секции **files:**. Для работы необходимо, чтобы был хотя-бы
+All included files are specified in the **files:** section. For it to work, it is necessary that there is at least
 ```yaml
-- packages/core.yaml # Ядро всего сущего
+- packages/core.yaml # The core of all things
 ```
-Все остальные модули по желанию (их описание в том же файле чуть выше). **Важно**, чтобы все строки с файлами были выровнены по
-импровизированной метке, которую я специально указал, иначе у ESPHome возникнет много вопросов к Вам. Например, **должно быть так:**
+All other modules are optional (their description is in the same file slightly above). It is **important** that all lines with files are aligned by
+the improvised mark that I specifically pointed out, otherwise ESPHome will have many questions for you. For example, **it should be like this:**
 ```yaml
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tclac.git
     ref: master
     files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
+    # v - align lines with options at this position, otherwise it will glitch
+      - packages/core.yaml # The core of all things
       - packages/leds.yaml
     refresh: 30s
 ```
-А вот так уже **не правильно:**
+And this is **incorrect:**
 ```yaml
 packages:
   remote_package:
     url: https://github.com/I-am-nightingale/tclac.git
     ref: master
     files:
-    # v - равнение строк с опциями вот по этой позиции, иначе глючить будет
-      - packages/core.yaml # Ядро всего сущего
+    # v - align lines with options at this position, otherwise it will glitch
+      - packages/core.yaml # The core of all things
         - packages/leds.yaml
     refresh: 30s
 ```

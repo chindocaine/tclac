@@ -2,7 +2,7 @@
 * Create by Miguel Ángel López on 20/07/19
 * and modify by xaxexa
 * Refactoring & component making:
-* Соловей с паяльником 15.03.2024
+* Nightingale with a soldering iron 15.03.2024
 **/
 
 #ifndef TCL_ESP_TCL_H
@@ -87,13 +87,13 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 	private:
 		uint8_t checksum;
 		uint8_t check = 0;
-		// dataTX с управлением состоит из 38 байт
+		// dataTX with control consists of 38 bytes
 		uint8_t dataTX[38];
-		// А dataRX в некоторых моделях разбухает до 68 байт
+		// And dataRX in some models swells to 68 bytes
 		uint8_t dataRX[68];
-		// Команда запроса состояния
+		// State request command
 		uint8_t poll[8] = {0xBB,0x00,0x01,0x04,0x02,0x01,0x00,0xBD};
-		// Инициализация и начальное наполнение переменных состоянй переключателей
+		// Initialization and initial filling of switch state variables
 		bool beeper_status_;
 		bool display_status_;
 		bool force_mode_status_;
