@@ -88,19 +88,21 @@ void tclacClimate::loop()  {
 		esphome::uart::UARTDevice::read_array(dataRX+5, dataRX[4]+1);
 
 		// Get checksum:
+		uint8_t packet_len = 0;
 		if (dataRX[4] == 0x3e){
 			// For a 68-byte data packet
-			check = getChecksum(dataRX, 68);
+			packet_len = 68;
 		} else if (dataRX[4] == 0x37){
 			// For a 61-byte data packet
-			check = getChecksum(dataRX, 61);
+			packet_len = 61;
 		} else {
 			// For a 65-byte data packet
-			check = getChecksum(dataRX, 65);
+			packet_len = 65;
 		}
+		check = getChecksum(dataRX, packet_len);
 
-		//raw = getHex(dataRX, sizeof(dataRX));
-		//ESP_LOGD("TCL", "RX full : %s ", raw.c_str());
+		auto raw = getHex(dataRX, packet_len);
+		ESP_LOGD("TCL", "RX: %s", raw.c_str());
 		
 		// Verify checksum:
 		if (dataRX[4] == 0x3e){
@@ -140,8 +142,8 @@ void tclacClimate::loop()  {
 void tclacClimate::update() {
 	tclacClimate::dataShow(1,1);
 	this->esphome::uart::UARTDevice::write_array(poll, sizeof(poll));
-	//auto raw = tclacClimate::getHex(poll, sizeof(poll));
-	ESP_LOGD("TCL", "chek status sended");
+	auto raw = tclacClimate::getHex(poll, sizeof(poll));
+	ESP_LOGD("TCL", "TX (poll): %s", raw.c_str());
 	tclacClimate::dataShow(1,0);
 }
 
@@ -178,7 +180,7 @@ void tclacClimate::readData() {
 				this->mode = climate::CLIMATE_MODE_HEAT;
 				break;
 			default:
-				this->mode = climate::CLIMATE_MODE_HEAT_COOL;
+				ESP_LOGE("TCL", "Received unknown mode: %02x", modeswitch);
 		}
 
 		if ( dataRX[FAN_QUIET_POS] & FAN_QUIET) {
@@ -206,7 +208,7 @@ void tclacClimate::readData() {
 					fan_mode = climate::CLIMATE_FAN_FOCUS;
 					break;
 				default:
-					fan_mode = climate::CLIMATE_FAN_AUTO;
+					ESP_LOGE("TCL", "Received unknown fan speed: %02x", fanspeedswitch);
 			}
 		}
 
@@ -223,6 +225,8 @@ void tclacClimate::readData() {
 			case SWING_BOTH:
 				swing_mode = climate::CLIMATE_SWING_BOTH;
 				break;
+            default:
+                ESP_LOGE("TCL", "Received unknown swing mode: %02x", swingmodeswitch);
 		}
 		
 		// Preset data processing
@@ -582,18 +586,19 @@ void tclacClimate::sendData(uint8_t * message, uint8_t size) {
 	tclacClimate::dataShow(1,1);
 	//Serial.write(message, size);
 	this->esphome::uart::UARTDevice::write_array(message, size);
-	//auto raw = getHex(message, size);
-	ESP_LOGD("TCL", "Message to TCL sended...");
+	auto raw = getHex(message, size);
+	ESP_LOGD("TCL", "TX: %s", raw.c_str());
 	tclacClimate::dataShow(1,0);
 }
 
-// Converting byte to readable format
+// Converting byte array to hex string
 String tclacClimate::getHex(uint8_t *message, uint8_t size) {
-	String raw;
+	char buffer[4];
+	String raw = "";
 	for (int i = 0; i < size; i++) {
-		raw += "\n" + String(message[i]);
+		sprintf(buffer, "%02X ", message[i]);
+		raw += buffer;
 	}
-	raw.toUpperCase();
 	return raw;
 }
 
