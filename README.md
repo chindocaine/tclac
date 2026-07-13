@@ -91,7 +91,7 @@ cursed spaces and so on. Everything is done by adding or removing links to files
 ```yaml
 packages:
   remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
+    url: https://github.com/chindocaine/tclac.git
     ref: master
     files:
     # v - align lines with options at this position, otherwise it will glitch
@@ -108,7 +108,7 @@ the improvised mark that I specifically pointed out, otherwise ESPHome will have
 ```yaml
 packages:
   remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
+    url: https://github.com/chindocaine/tclac.git
     ref: master
     files:
     # v - align lines with options at this position, otherwise it will glitch
@@ -120,7 +120,7 @@ And this is **incorrect:**
 ```yaml
 packages:
   remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
+    url: https://github.com/chindocaine/tclac.git
     ref: master
     files:
     # v - align lines with options at this position, otherwise it will glitch

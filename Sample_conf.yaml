@@ -13,7 +13,7 @@ substitutions:
 
 packages:
   remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
+    url: https://github.com/chindocaine/tclac.git
     ref: master
     files:
       - packages/core.yaml

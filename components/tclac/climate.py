@@ -25,7 +25,7 @@ from esphome.components.climate import (
 )
 
 AUTO_LOAD = ["climate"]
-CODEOWNERS = ["@I-am-nightingale", "@xaxexa", "@junkfix"]
+CODEOWNERS = ["@chindocaine", "@I-am-nightingale", "@xaxexa", "@junkfix"]
 DEPENDENCIES = ["climate", "uart"]
 
 TCLAC_MIN_TEMPERATURE = 16.0

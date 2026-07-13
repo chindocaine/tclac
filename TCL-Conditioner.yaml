@@ -32,7 +32,7 @@ substitutions:
 # Aligning uncommented lines to the specified position is mandatory!
 packages:
   remote_package:
-    url: https://github.com/I-am-nightingale/tclac.git
+    url: https://github.com/chindocaine/tclac.git
     ref: master
     files:
     # v - align lines with options at this position, otherwise it will glitch
