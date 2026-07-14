@@ -69,34 +69,6 @@ using climate::ClimateTraits;
 using climate::ClimateFanMode;
 using climate::ClimateSwingMode;
 
-enum class VerticalSwingDirection : uint8_t {
-	UP_DOWN = 0,
-	UPSIDE = 1,
-	DOWNSIDE = 2,
-};
-enum class HorizontalSwingDirection : uint8_t {
-	LEFT_RIGHT = 0,
-	LEFTSIDE = 1,
-	CENTER = 2,
-	RIGHTSIDE = 3,
-};
-enum class AirflowVerticalDirection : uint8_t {
-	LAST = 0,
-	MAX_UP = 1,
-	UP = 2,
-	CENTER = 3,
-	DOWN = 4,
-	MAX_DOWN = 5,
-};
-enum class AirflowHorizontalDirection : uint8_t {
-	LAST = 0,
-	MAX_LEFT = 1,
-	LEFT = 2,
-	CENTER = 3,
-	RIGHT = 4,
-	MAX_RIGHT = 5,
-};
-
 class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, public PollingComponent {
 
 	private:
@@ -113,7 +85,6 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		bool display_status_;
 		bool force_mode_status_;
 		uint8_t switch_preset = 0;
-		bool module_display_status_;
 		uint8_t switch_fan_mode = 0;
 		uint8_t fan_speed_levels_ = 5;
 		bool is_call_control = false;
@@ -137,33 +108,19 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void update() override;
 		void set_beeper_state(bool state);
 		void set_display_state(bool disp_state);
-		void dataShow(bool flow, bool shine);
 		void set_force_mode_state(bool f_state);
-		void set_rx_led_pin(GPIOPin *rx_led_pin);
-		void set_tx_led_pin(GPIOPin *tx_led_pin);
 		void sendData(uint8_t * message, uint8_t size);
-		void set_module_display_state(bool d_state);
 		static String getHex(uint8_t *message, uint8_t size);
 		static uint8_t getChecksum(const uint8_t * message, size_t size);
-		void set_vertical_airflow(AirflowVerticalDirection v_airflow);
-		void set_horizontal_airflow(AirflowHorizontalDirection h_airflow);
-		void set_vertical_swing_direction(VerticalSwingDirection vs_direction);
-		void set_horizontal_swing_direction(HorizontalSwingDirection hs_direction);
 		void set_supported_presets(climate::ClimatePresetMask presets);
 		void set_supported_modes(climate::ClimateModeMask modes);
 		void set_supported_swing_modes(climate::ClimateSwingModeMask swing_modes);
 		void set_fan_speed_levels(uint8_t levels);
 
 	protected:
-		GPIOPin *rx_led_pin_;
-		GPIOPin *tx_led_pin_;
 		ClimateTraits traits() override;
 		climate::ClimateModeMask supported_modes_{};
-		AirflowVerticalDirection vertical_direction_;
 		climate::ClimatePresetMask supported_presets_{};
-		AirflowHorizontalDirection horizontal_direction_;
-		VerticalSwingDirection vertical_swing_direction_;
-		HorizontalSwingDirection horizontal_swing_direction_;
 		climate::ClimateSwingModeMask supported_swing_modes_{};
 		void control(const climate::ClimateCall &call) override;
 		uint8_t encode_fan_speed_tx_(uint8_t code) const;
