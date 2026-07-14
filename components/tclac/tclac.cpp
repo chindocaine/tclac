@@ -32,20 +32,10 @@ ClimateTraits tclacClimate::traits() {
 			traits.add_supported_preset(preset);
 	}
 	// AUTO stays a built-in ClimateFanMode (HA already renders it correctly).
-	// Silent/speed levels/power are exposed as custom fan modes so their labels
-	// can reflect the TCL scheme instead of HA's fixed LOW/MEDIUM/HIGH/... set.
+	// Silent/speed levels/power are exposed as custom fan modes (set up once in
+	// setup(), see set_supported_custom_fan_modes() there) so their labels can
+	// reflect the TCL scheme instead of HA's fixed LOW/MEDIUM/HIGH/... set.
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
-	std::vector<const char *> custom_fan_modes;
-	custom_fan_modes.push_back(FAN_MODE_SILENT);
-	custom_fan_modes.push_back(FAN_MODE_LOW);
-	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_LOW_MEDIUM);
-	custom_fan_modes.push_back(FAN_MODE_MEDIUM);
-	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_MEDIUM_HIGH);
-	custom_fan_modes.push_back(FAN_MODE_HIGH);
-	custom_fan_modes.push_back(FAN_MODE_POWER);
-	traits.set_supported_custom_fan_modes(custom_fan_modes);
-	// Note: displayed in ascending speed order above, but the underlying wire
-	// codes are NOT sequential by speed - see get_fan_speed_name_() below.
 	if (this->supported_swing_modes_.empty()) {
 		traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	} else {
@@ -58,6 +48,20 @@ ClimateTraits tclacClimate::traits() {
 
 
 void tclacClimate::setup() {
+
+	// Custom fan modes are set on the Climate entity itself (not on the local
+	// ClimateTraits built in traits()) - get_traits() merges them in for us.
+	std::vector<const char *> custom_fan_modes;
+	custom_fan_modes.push_back(FAN_MODE_SILENT);
+	custom_fan_modes.push_back(FAN_MODE_LOW);
+	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_LOW_MEDIUM);
+	custom_fan_modes.push_back(FAN_MODE_MEDIUM);
+	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_MEDIUM_HIGH);
+	custom_fan_modes.push_back(FAN_MODE_HIGH);
+	custom_fan_modes.push_back(FAN_MODE_POWER);
+	// Displayed in ascending speed order above, but the underlying wire codes
+	// are NOT sequential by speed - see get_fan_speed_name_() below.
+	this->set_supported_custom_fan_modes(custom_fan_modes);
 
 #ifdef CONF_RX_LED
 	this->rx_led_pin_->setup();
@@ -333,13 +337,13 @@ void tclacClimate::takeControl() {
 
 	// Configure fan mode
 	if (this->has_custom_fan_mode()) {
-		const char *custom_fan_mode = this->get_custom_fan_mode();
-		if (strcmp(custom_fan_mode, FAN_MODE_SILENT) == 0) {
+		esphome::StringRef custom_fan_mode = this->get_custom_fan_mode();
+		if (custom_fan_mode == FAN_MODE_SILENT) {
 			dataTX[8]	+= 0b10000000;
-		} else if (strcmp(custom_fan_mode, FAN_MODE_POWER) == 0) {
+		} else if (custom_fan_mode == FAN_MODE_POWER) {
 			dataTX[8]	+= 0b01000000;
 		} else {
-			uint8_t fan_speed_code = this->get_fan_speed_code_(custom_fan_mode);
+			uint8_t fan_speed_code = this->get_fan_speed_code_(custom_fan_mode.c_str());
 			dataTX[10]	+= this->encode_fan_speed_tx_(fan_speed_code);
 		}
 	}
