@@ -39,13 +39,21 @@ namespace tclac {
 // simply use a subset of codes 1-3 instead of 1-5.
 #define FAN_SPEED_CODE(byte)	(((byte) >> 4) & 0x07)
 
+// low/medium/high map directly onto the built-in ClimateFanMode enum (codes
+// 1/2/3), so HA's translated "Low"/"Medium"/"High" labels are used as-is.
+// Only the concepts TCL's protocol has that ESPHome's enum doesn't (silent,
+// power, and the two in-between levels only present on 5-level units) need
+// custom fan modes.
+// NOTE: ESPHome's API matches an incoming fan mode string case-insensitively
+// against the built-in ClimateFanMode names (ON, OFF, AUTO, LOW, MEDIUM,
+// HIGH, MIDDLE, FOCUS, DIFFUSE, QUIET) BEFORE ever checking custom fan modes -
+// regardless of what this device's traits actually support. None of the
+// custom names below may equal one of those 10 words verbatim (this is why
+// we don't just add "Low Medium"/"Medium High" as literal fragments of them).
 static const char *const FAN_MODE_SILENT = "Silent";
-static const char *const FAN_MODE_LOW = "Low";
 static const char *const FAN_MODE_LOW_MEDIUM = "Low Medium";
-static const char *const FAN_MODE_MEDIUM = "Medium";
 static const char *const FAN_MODE_MEDIUM_HIGH = "Medium High";
-static const char *const FAN_MODE_HIGH = "High";
-static const char *const FAN_MODE_POWER = "Power";
+static const char *const FAN_MODE_POWER = "Turbo";
 
 #define SWING_POS			10
 #define SWING_OFF			0b00000000
@@ -158,8 +166,6 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		HorizontalSwingDirection horizontal_swing_direction_;
 		climate::ClimateSwingModeMask supported_swing_modes_{};
 		void control(const climate::ClimateCall &call) override;
-		const char *get_fan_speed_name_(uint8_t code) const;
-		uint8_t get_fan_speed_code_(const char *name) const;
 		uint8_t encode_fan_speed_tx_(uint8_t code) const;
 };
 }

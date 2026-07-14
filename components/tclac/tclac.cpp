@@ -4,7 +4,6 @@
 * Refactoring & component making:
 * Nightingale with a soldering iron 15.03.2024
 **/
-#include <cstring>
 #include "esphome.h"
 #include "esphome/core/defines.h"
 #include "tclac.h"
@@ -31,11 +30,14 @@ ClimateTraits tclacClimate::traits() {
 		for (auto preset : this->supported_presets_)
 			traits.add_supported_preset(preset);
 	}
-	// AUTO stays a built-in ClimateFanMode (HA already renders it correctly).
-	// Silent/speed levels/power are exposed as custom fan modes (set up once in
-	// setup(), see set_supported_custom_fan_modes() there) so their labels can
-	// reflect the TCL scheme instead of HA's fixed LOW/MEDIUM/HIGH/... set.
+	// AUTO/LOW/MEDIUM/HIGH map directly onto TCL's own semantics, so they stay
+	// built-in ClimateFanMode values (HA already renders them correctly).
+	// Silent/power/in-between-levels are exposed as custom fan modes (set up
+	// once in setup(), see set_supported_custom_fan_modes() there).
 	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_LOW);
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_MEDIUM);
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_HIGH);
 	if (this->supported_swing_modes_.empty()) {
 		traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	} else {
@@ -53,14 +55,9 @@ void tclacClimate::setup() {
 	// ClimateTraits built in traits()) - get_traits() merges them in for us.
 	std::vector<const char *> custom_fan_modes;
 	custom_fan_modes.push_back(FAN_MODE_SILENT);
-	custom_fan_modes.push_back(FAN_MODE_LOW);
 	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_LOW_MEDIUM);
-	custom_fan_modes.push_back(FAN_MODE_MEDIUM);
 	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_MEDIUM_HIGH);
-	custom_fan_modes.push_back(FAN_MODE_HIGH);
 	custom_fan_modes.push_back(FAN_MODE_POWER);
-	// Displayed in ascending speed order above, but the underlying wire codes
-	// are NOT sequential by speed - see get_fan_speed_name_() below.
 	this->set_supported_custom_fan_modes(custom_fan_modes);
 
 #ifdef CONF_RX_LED
@@ -201,14 +198,28 @@ void tclacClimate::readData() {
 			this->set_custom_fan_mode_(FAN_MODE_SILENT);
 		} else if (dataRX[MODE_POS] & FAN_POWER) {
 			this->set_custom_fan_mode_(FAN_MODE_POWER);
-		} else if (fan_speed_code == 0) {
-			this->set_fan_mode_(climate::CLIMATE_FAN_AUTO);
 		} else {
-			const char *fan_speed_name = this->get_fan_speed_name_(fan_speed_code);
-			if (fan_speed_name != nullptr) {
-				this->set_custom_fan_mode_(fan_speed_name);
-			} else {
-				ESP_LOGE("TCL", "Received unknown fan speed code: %u", fan_speed_code);
+			switch (fan_speed_code) {
+				case 0:
+					this->set_fan_mode_(climate::CLIMATE_FAN_AUTO);
+					break;
+				case 1:
+					this->set_fan_mode_(climate::CLIMATE_FAN_LOW);
+					break;
+				case 2:
+					this->set_fan_mode_(climate::CLIMATE_FAN_MEDIUM);
+					break;
+				case 3:
+					this->set_fan_mode_(climate::CLIMATE_FAN_HIGH);
+					break;
+				case 4:
+					this->set_custom_fan_mode_(FAN_MODE_LOW_MEDIUM);
+					break;
+				case 5:
+					this->set_custom_fan_mode_(FAN_MODE_MEDIUM_HIGH);
+					break;
+				default:
+					ESP_LOGE("TCL", "Received unknown fan speed code: %u", fan_speed_code);
 			}
 		}
 
@@ -342,12 +353,27 @@ void tclacClimate::takeControl() {
 			dataTX[8]	+= 0b10000000;
 		} else if (custom_fan_mode == FAN_MODE_POWER) {
 			dataTX[8]	+= 0b01000000;
-		} else {
-			uint8_t fan_speed_code = this->get_fan_speed_code_(custom_fan_mode.c_str());
-			dataTX[10]	+= this->encode_fan_speed_tx_(fan_speed_code);
+		} else if (custom_fan_mode == FAN_MODE_LOW_MEDIUM) {
+			dataTX[10]	+= this->encode_fan_speed_tx_(4);
+		} else if (custom_fan_mode == FAN_MODE_MEDIUM_HIGH) {
+			dataTX[10]	+= this->encode_fan_speed_tx_(5);
+		}
+	} else if (this->fan_mode.has_value()) {
+		switch (*this->fan_mode) {
+			case climate::CLIMATE_FAN_LOW:
+				dataTX[10]	+= this->encode_fan_speed_tx_(1);
+				break;
+			case climate::CLIMATE_FAN_MEDIUM:
+				dataTX[10]	+= this->encode_fan_speed_tx_(2);
+				break;
+			case climate::CLIMATE_FAN_HIGH:
+				dataTX[10]	+= this->encode_fan_speed_tx_(3);
+				break;
+			default:
+				// CLIMATE_FAN_AUTO needs no bits set; dataTX[8]/dataTX[10] already default to 0.
+				break;
 		}
 	}
-	// climate::CLIMATE_FAN_AUTO needs no bits set; dataTX[8]/dataTX[10] already default to 0.
 	
 	// Set swing mode
 	switch(this->swing_mode) {
@@ -700,31 +726,6 @@ void tclacClimate::set_horizontal_swing_direction(HorizontalSwingDirection hs_di
 // Setting how many fan speed levels the unit supports (3 or 5)
 void tclacClimate::set_fan_speed_levels(uint8_t levels){
 	this->fan_speed_levels_ = levels;
-}
-
-// Translate a raw fan speed code into the custom fan mode name exposed to HA.
-// low/medium/high are always codes 1/2/3 - present on every unit. The
-// "in-between" levels were apparently added in later models re-using codes
-// 4/5, so they are NOT sequential with low/medium/high by speed.
-const char *tclacClimate::get_fan_speed_name_(uint8_t code) const {
-	switch (code) {
-		case 1: return FAN_MODE_LOW;
-		case 2: return FAN_MODE_MEDIUM;
-		case 3: return FAN_MODE_HIGH;
-		case 4: return FAN_MODE_LOW_MEDIUM;
-		case 5: return FAN_MODE_MEDIUM_HIGH;
-		default: return nullptr;
-	}
-}
-
-// Translate a custom fan mode name back into its raw fan speed code (1-5)
-uint8_t tclacClimate::get_fan_speed_code_(const char *name) const {
-	if (strcmp(name, FAN_MODE_LOW) == 0) return 1;
-	if (strcmp(name, FAN_MODE_MEDIUM) == 0) return 2;
-	if (strcmp(name, FAN_MODE_HIGH) == 0) return 3;
-	if (strcmp(name, FAN_MODE_LOW_MEDIUM) == 0) return 4;
-	if (strcmp(name, FAN_MODE_MEDIUM_HIGH) == 0) return 5;
-	return 0;
 }
 
 // Encode a fan speed code into the bits sent in dataTX[10]. Matches the byte
