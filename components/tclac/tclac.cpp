@@ -4,6 +4,7 @@
 * Refactoring & component making:
 * Nightingale with a soldering iron 15.03.2024
 **/
+#include <cstring>
 #include "esphome.h"
 #include "esphome/core/defines.h"
 #include "tclac.h"
@@ -30,12 +31,21 @@ ClimateTraits tclacClimate::traits() {
 		for (auto preset : this->supported_presets_)
 			traits.add_supported_preset(preset);
 	}
-	if (this->supported_fan_modes_.empty()) {
-		traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
-	} else {
-		for (auto fan_mode : this->supported_fan_modes_)
-			traits.add_supported_fan_mode(fan_mode);
-	}
+	// AUTO stays a built-in ClimateFanMode (HA already renders it correctly).
+	// Silent/speed levels/power are exposed as custom fan modes so their labels
+	// can reflect the TCL scheme instead of HA's fixed LOW/MEDIUM/HIGH/... set.
+	traits.add_supported_fan_mode(climate::CLIMATE_FAN_AUTO);
+	std::vector<const char *> custom_fan_modes;
+	custom_fan_modes.push_back(FAN_MODE_SILENT);
+	custom_fan_modes.push_back(FAN_MODE_LOW);
+	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_LOW_MEDIUM);
+	custom_fan_modes.push_back(FAN_MODE_MEDIUM);
+	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_MEDIUM_HIGH);
+	custom_fan_modes.push_back(FAN_MODE_HIGH);
+	custom_fan_modes.push_back(FAN_MODE_POWER);
+	traits.set_supported_custom_fan_modes(custom_fan_modes);
+	// Note: displayed in ascending speed order above, but the underlying wire
+	// codes are NOT sequential by speed - see get_fan_speed_name_() below.
 	if (this->supported_swing_modes_.empty()) {
 		traits.add_supported_swing_mode(climate::CLIMATE_SWING_OFF);
 	} else {
@@ -160,7 +170,7 @@ void tclacClimate::readData() {
 		// If the air conditioner is on, then parse the data for display
 		ESP_LOGD("TCL", "AC is on");
 		uint8_t modeswitch = MODE_MASK & dataRX[MODE_POS];
-		uint8_t fanspeedswitch = FAN_SPEED_MASK & dataRX[FAN_SPEED_POS];
+		uint8_t fan_speed_code = FAN_SPEED_CODE(dataRX[FAN_SPEED_POS]);
 		uint8_t swingmodeswitch = SWING_MODE_MASK & dataRX[SWING_POS];
 
 		switch (modeswitch) {
@@ -183,32 +193,18 @@ void tclacClimate::readData() {
 				ESP_LOGE("TCL", "Received unknown mode: %02x", modeswitch);
 		}
 
-		if ( dataRX[FAN_QUIET_POS] & FAN_QUIET) {
-			fan_mode = climate::CLIMATE_FAN_QUIET;
-		} else if (dataRX[MODE_POS] & FAN_DIFFUSE){
-			fan_mode = climate::CLIMATE_FAN_DIFFUSE;
+		if (dataRX[FAN_QUIET_POS] & FAN_QUIET) {
+			this->set_custom_fan_mode_(FAN_MODE_SILENT);
+		} else if (dataRX[MODE_POS] & FAN_POWER) {
+			this->set_custom_fan_mode_(FAN_MODE_POWER);
+		} else if (fan_speed_code == 0) {
+			this->set_fan_mode_(climate::CLIMATE_FAN_AUTO);
 		} else {
-			switch (fanspeedswitch) {
-				case FAN_AUTO:
-					fan_mode = climate::CLIMATE_FAN_AUTO;
-					break;
-				case FAN_LOW:
-					fan_mode = climate::CLIMATE_FAN_LOW;
-					break;
-				case FAN_MIDDLE:
-					fan_mode = climate::CLIMATE_FAN_MIDDLE;
-					break;
-				case FAN_MEDIUM:
-					fan_mode = climate::CLIMATE_FAN_MEDIUM;
-					break;
-				case FAN_HIGH:
-					fan_mode = climate::CLIMATE_FAN_HIGH;
-					break;
-				case FAN_FOCUS:
-					fan_mode = climate::CLIMATE_FAN_FOCUS;
-					break;
-				default:
-					ESP_LOGE("TCL", "Received unknown fan speed: %02x", fanspeedswitch);
+			const char *fan_speed_name = this->get_fan_speed_name_(fan_speed_code);
+			if (fan_speed_name != nullptr) {
+				this->set_custom_fan_mode_(fan_speed_name);
+			} else {
+				ESP_LOGE("TCL", "Received unknown fan speed code: %u", fan_speed_code);
 			}
 		}
 
@@ -261,7 +257,8 @@ void tclacClimate::control(const climate::ClimateCall &call) {
 	
 	if (call.get_mode().has_value()) this->mode = *call.get_mode();
     if (call.get_target_temperature().has_value()) this->target_temperature = *call.get_target_temperature();
-    if (call.get_fan_mode().has_value()) this->fan_mode = *call.get_fan_mode();
+    if (call.get_fan_mode().has_value()) this->set_fan_mode_(*call.get_fan_mode());
+    if (call.has_custom_fan_mode()) this->set_custom_fan_mode_(call.get_custom_fan_mode());
 	if (call.get_swing_mode().has_value()) this->swing_mode = *call.get_swing_mode();
 	if (call.get_preset().has_value()) this->preset = *call.get_preset();
 	
@@ -335,42 +332,18 @@ void tclacClimate::takeControl() {
 	}
 
 	// Configure fan mode
-	if (this->fan_mode.has_value()) {
-		switch(*this->fan_mode) {
-			case climate::CLIMATE_FAN_AUTO:
-				dataTX[8]	+= 0b00000000;
-				dataTX[10]	+= 0b00000000;
-				break;
-			case climate::CLIMATE_FAN_QUIET:
-				dataTX[8]	+= 0b10000000;
-				dataTX[10]	+= 0b00000000;
-				break;
-			case climate::CLIMATE_FAN_LOW:
-				dataTX[8]	+= 0b00000000;
-				dataTX[10]	+= 0b00000001;
-				break;
-			case climate::CLIMATE_FAN_MIDDLE:
-				dataTX[8]	+= 0b00000000;
-				dataTX[10]	+= 0b00000110;
-				break;
-			case climate::CLIMATE_FAN_MEDIUM:
-				dataTX[8]	+= 0b00000000;
-				dataTX[10]	+= 0b00000011;
-				break;
-			case climate::CLIMATE_FAN_HIGH:
-				dataTX[8]	+= 0b00000000;
-				dataTX[10]	+= 0b00000111;
-				break;
-			case climate::CLIMATE_FAN_FOCUS:
-				dataTX[8]	+= 0b00000000;
-				dataTX[10]	+= 0b00000101;
-				break;
-			case climate::CLIMATE_FAN_DIFFUSE:
-				dataTX[8]	+= 0b01000000;
-				dataTX[10]	+= 0b00000000;
-				break;
+	if (this->has_custom_fan_mode()) {
+		const char *custom_fan_mode = this->get_custom_fan_mode();
+		if (strcmp(custom_fan_mode, FAN_MODE_SILENT) == 0) {
+			dataTX[8]	+= 0b10000000;
+		} else if (strcmp(custom_fan_mode, FAN_MODE_POWER) == 0) {
+			dataTX[8]	+= 0b01000000;
+		} else {
+			uint8_t fan_speed_code = this->get_fan_speed_code_(custom_fan_mode);
+			dataTX[10]	+= this->encode_fan_speed_tx_(fan_speed_code);
 		}
 	}
+	// climate::CLIMATE_FAN_AUTO needs no bits set; dataTX[8]/dataTX[10] already default to 0.
 	
 	// Set swing mode
 	switch(this->swing_mode) {
@@ -720,9 +693,51 @@ void tclacClimate::set_horizontal_swing_direction(HorizontalSwingDirection hs_di
 		}
 	}
 }
-// Getting available fan speeds
-void tclacClimate::set_supported_fan_modes(climate::ClimateFanModeMask fan_modes){
-	this->supported_fan_modes_ = fan_modes;
+// Setting how many fan speed levels the unit supports (3 or 5)
+void tclacClimate::set_fan_speed_levels(uint8_t levels){
+	this->fan_speed_levels_ = levels;
+}
+
+// Translate a raw fan speed code into the custom fan mode name exposed to HA.
+// low/medium/high are always codes 1/2/3 - present on every unit. The
+// "in-between" levels were apparently added in later models re-using codes
+// 4/5, so they are NOT sequential with low/medium/high by speed.
+const char *tclacClimate::get_fan_speed_name_(uint8_t code) const {
+	switch (code) {
+		case 1: return FAN_MODE_LOW;
+		case 2: return FAN_MODE_MEDIUM;
+		case 3: return FAN_MODE_HIGH;
+		case 4: return FAN_MODE_LOW_MEDIUM;
+		case 5: return FAN_MODE_MEDIUM_HIGH;
+		default: return nullptr;
+	}
+}
+
+// Translate a custom fan mode name back into its raw fan speed code (1-5)
+uint8_t tclacClimate::get_fan_speed_code_(const char *name) const {
+	if (strcmp(name, FAN_MODE_LOW) == 0) return 1;
+	if (strcmp(name, FAN_MODE_MEDIUM) == 0) return 2;
+	if (strcmp(name, FAN_MODE_HIGH) == 0) return 3;
+	if (strcmp(name, FAN_MODE_LOW_MEDIUM) == 0) return 4;
+	if (strcmp(name, FAN_MODE_MEDIUM_HIGH) == 0) return 5;
+	return 0;
+}
+
+// Encode a fan speed code into the bits sent in dataTX[10]. Matches the byte
+// values used by the previously working MIDDLE/MEDIUM/HIGH/FOCUS enum mapping
+// (verified on hardware for the 5-level unit).
+// For the 3-level unit this is UNVERIFIED beyond codes 1-3: it assumes the
+// TX fan field takes the same raw code as it reports on RX - please confirm
+// on real hardware (especially silent/power) before relying on it.
+uint8_t tclacClimate::encode_fan_speed_tx_(uint8_t code) const {
+	switch (code) {
+		case 1: return 0b00000001; // low
+		case 2: return 0b00000011; // medium
+		case 3: return 0b00000101; // high
+		case 4: return 0b00000110; // low-medium
+		case 5: return 0b00000111; // medium-high
+		default: return 0;
+	}
 }
 // Getting available swing modes
 void tclacClimate::set_supported_swing_modes(climate::ClimateSwingModeMask swing_modes) {

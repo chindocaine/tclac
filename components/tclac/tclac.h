@@ -30,15 +30,22 @@ namespace tclac {
 #define FAN_SPEED_POS	8
 #define FAN_QUIET_POS	33
 
-#define FAN_AUTO		0b10000000	//auto
 #define FAN_QUIET		0x80		//silent
-#define FAN_LOW			0b10010000	//	|
-#define FAN_MIDDLE		0b11000000	//	||
-#define FAN_MEDIUM		0b10100000	//	|||
-#define FAN_HIGH		0b11010000	//	||||
-#define FAN_FOCUS		0b10110000	//	|||||
-#define FAN_DIFFUSE		0b10000000	//	POWER [7]
-#define FAN_SPEED_MASK	0b11110000	//FAN SPEED MASK
+#define FAN_POWER		0b10000000	//	POWER [7]
+
+// Fan speed is encoded in bits 6-4 of dataRX[FAN_SPEED_POS] as a sequential level
+// code, bit 7 being irrelevant to the speed itself: 0=auto, 1..5=speed level.
+// Units with fewer than 5 physical speeds (auto+silent+low+medium+high+power)
+// simply use a subset of codes 1-3 instead of 1-5.
+#define FAN_SPEED_CODE(byte)	(((byte) >> 4) & 0x07)
+
+static const char *const FAN_MODE_SILENT = "Silent";
+static const char *const FAN_MODE_LOW = "Low";
+static const char *const FAN_MODE_LOW_MEDIUM = "Low Medium";
+static const char *const FAN_MODE_MEDIUM = "Medium";
+static const char *const FAN_MODE_MEDIUM_HIGH = "Medium High";
+static const char *const FAN_MODE_HIGH = "High";
+static const char *const FAN_MODE_POWER = "Power";
 
 #define SWING_POS			10
 #define SWING_OFF			0b00000000
@@ -100,6 +107,7 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		uint8_t switch_preset = 0;
 		bool module_display_status_;
 		uint8_t switch_fan_mode = 0;
+		uint8_t fan_speed_levels_ = 5;
 		bool is_call_control = false;
 		uint8_t switch_swing_mode = 0;
 		int target_temperature_set = 0;
@@ -135,9 +143,9 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void set_horizontal_swing_direction(HorizontalSwingDirection hs_direction);
 		void set_supported_presets(climate::ClimatePresetMask presets);
 		void set_supported_modes(climate::ClimateModeMask modes);
-		void set_supported_fan_modes(climate::ClimateFanModeMask fan_modes);
 		void set_supported_swing_modes(climate::ClimateSwingModeMask swing_modes);
-		
+		void set_fan_speed_levels(uint8_t levels);
+
 	protected:
 		GPIOPin *rx_led_pin_;
 		GPIOPin *tx_led_pin_;
@@ -147,10 +155,12 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		climate::ClimatePresetMask supported_presets_{};
 		AirflowHorizontalDirection horizontal_direction_;
 		VerticalSwingDirection vertical_swing_direction_;
-		climate::ClimateFanModeMask supported_fan_modes_{};
 		HorizontalSwingDirection horizontal_swing_direction_;
 		climate::ClimateSwingModeMask supported_swing_modes_{};
 		void control(const climate::ClimateCall &call) override;
+		const char *get_fan_speed_name_(uint8_t code) const;
+		uint8_t get_fan_speed_code_(const char *name) const;
+		uint8_t encode_fan_speed_tx_(uint8_t code) const;
 };
 }
 }
