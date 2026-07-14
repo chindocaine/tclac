@@ -20,24 +20,14 @@ substitutions:
 # Module pins to which UART is connected:
   uart_rx: GPIO3
   uart_tx: GPIO1
-# Module pins for connecting signaling LEDs, for them to work you need to uncomment "leds" in "packages"
-# otherwise it will not work at all and you can write anything here. For those who asked to remove them.
-  receive_led: GPIO6
-  transmit_led: GPIO4
 
-# Included files- loaded and updated automatically from the internet, uncomment the ones you need
-# Option descriptions:
-# - packages/leds.yaml - LEDs for transmit/receive indication, pins are specified in receive_led / transmit_led
-#
-# Aligning uncommented lines to the specified position is mandatory!
+# Included files- loaded and updated automatically from the internet
 packages:
   remote_package:
     url: https://github.com/chindocaine/tclac.git
     ref: master
     files:
-    # v - align lines with options at this position, otherwise it will glitch
       - packages/core.yaml # The core of all things
-      # - packages/leds.yaml
     refresh: 30s
 
 # Selected module to be flashed with this firmware. You can uncomment a ready-made template, deleting the existing one:

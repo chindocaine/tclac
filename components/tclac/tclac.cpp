@@ -59,26 +59,15 @@ void tclacClimate::setup() {
 	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_MEDIUM_HIGH);
 	custom_fan_modes.push_back(FAN_MODE_POWER);
 	this->set_supported_custom_fan_modes(custom_fan_modes);
-
-#ifdef CONF_RX_LED
-	this->rx_led_pin_->setup();
-	this->rx_led_pin_->digital_write(false);
-#endif
-#ifdef CONF_TX_LED
-	this->tx_led_pin_->setup();
-	this->tx_led_pin_->digital_write(false);
-#endif
 }
 
 void tclacClimate::loop()  {
 	// If there is something in the UART buffer, then read that something
 	if (esphome::uart::UARTDevice::available() > 0) {
-		dataShow(0, true);
 		dataRX[0] = esphome::uart::UARTDevice::read();
 		// If the received byte is not the header (0xBB), then just leave the loop
 		if (dataRX[0] != 0xBB) {
 			ESP_LOGD("TCL", "Wrong byte");
-			dataShow(0,0);
 			return;
 		}
 		// But if the header matched (0xBB), then we start reading another 4 bytes in a chain
@@ -120,42 +109,30 @@ void tclacClimate::loop()  {
 			// For a 68-byte data packet
 			if (check != dataRX[67]) {
 				ESP_LOGD("TCL", "Invalid checksum %x", check);
-				this->dataShow(0,0);
 				return;
-			} else {
-				//ESP_LOGD("TCL", "checksum OK %x", check);
 			}
 		} else if (dataRX[4] == 0x37){
 			if (check != dataRX[60]) {
 				// For a 61-byte data packet
 				ESP_LOGD("TCL", "Invalid checksum %x", check);
-				this->dataShow(0,0);
 				return;
-			} else {
-				//ESP_LOGD("TCL", "checksum OK %x", check);
 			}
 		} else {
 			if (check != dataRX[64]) {
 				// For a 65-byte data packet
 				ESP_LOGD("TCL", "Invalid checksum %x", check);
-				this->dataShow(0,0);
 				return;
-			} else {
-				//ESP_LOGD("TCL", "checksum OK %x", check);
 			}
 		}
-		this->dataShow(0,0);
 		// Having read everything from the buffer, we proceed to parse the data
 		this->readData();
 	}
 }
 
 void tclacClimate::update() {
-	tclacClimate::dataShow(1,1);
 	this->esphome::uart::UARTDevice::write_array(poll, sizeof(poll));
 	auto raw = tclacClimate::getHex(poll, sizeof(poll));
 	ESP_LOGD("TCL", "TX (poll): %s", raw.c_str());
-	tclacClimate::dataShow(1,0);
 }
 
 void tclacClimate::readData() {
@@ -412,129 +389,6 @@ void tclacClimate::takeControl() {
 		}
 	}
 
-        //Swing mode
-		//	Vertical swing
-		//		Vertical swing [10 byte, mask 00111000]:
-		//			000 - Swing disabled, louver in last position or fixated
-		//			111 - Swing enabled in selected mode
-		//		Vertical swing mode (fixation mode doesn't matter if swing is enabled) [32 byte, mask 00011000]:
-		//			01 - swing up and down, DEFAULT
-		//			10 - swing in upper half
-		//			11 - swing in lower half
-		//		Louver fixation mode (swing mode doesn't matter if swing is disabled) [32 byte, mask 00000111]:
-		//			000 - no fixation, DEFAULT
-		//			001 - fixation at top
-		//			010 - fixation between top and middle
-		//			011 - fixation in middle
-		//			100 - fixation between middle and bottom
-		//			101 - fixation at bottom
-		//	Horizontal swing
-		//		Horizontal swing [11 byte, mask 00001000]:
-		//			0 - Swing disabled, louvers in last position or fixated
-		//			1 - Swing enabled in selected mode
-		//		Horizontal swing mode (fixation mode doesn't matter if swing is enabled) [33 byte, mask 00111000]:
-		//			001 - swing left to right, DEFAULT
-		//			010 - swing left
-		//			011 - swing in center
-		//			100 - swing right
-		//		Horizontal louver fixation mode (swing mode doesn't matter if swing is disabled) [33 byte, mask 00000111]:
-		//			000 - no fixation, DEFAULT
-		//			001 - fixation at left
-		//			010 - fixation between left side and middle
-		//			011 - fixation in middle
-		//			100 - fixation between middle and right side
-		//			101 - fixation at right
-		
-		
-	// Set mode for vertical swing direction
-	switch(vertical_swing_direction_) {
-		case VerticalSwingDirection::UP_DOWN:
-			dataTX[32]	+= 0b00001000;
-			ESP_LOGD("TCL", "Vertical swing: up-down");
-			break;
-		case VerticalSwingDirection::UPSIDE:
-			dataTX[32]	+= 0b00010000;
-			ESP_LOGD("TCL", "Vertical swing: upper");
-			break;
-		case VerticalSwingDirection::DOWNSIDE:
-			dataTX[32]	+= 0b00011000;
-			ESP_LOGD("TCL", "Vertical swing: downer");
-			break;
-	}
-	// Set mode for horizontal swing direction
-	switch(horizontal_swing_direction_) {
-		case HorizontalSwingDirection::LEFT_RIGHT:
-			dataTX[33]	+= 0b00001000;
-			ESP_LOGD("TCL", "Horizontal swing: left-right");
-			break;
-		case HorizontalSwingDirection::LEFTSIDE:
-			dataTX[33]	+= 0b00010000;
-			ESP_LOGD("TCL", "Horizontal swing: lefter");
-			break;
-		case HorizontalSwingDirection::CENTER:
-			dataTX[33]	+= 0b00011000;
-			ESP_LOGD("TCL", "Horizontal swing: center");
-			break;
-		case HorizontalSwingDirection::RIGHTSIDE:
-			dataTX[33]	+= 0b00100000;
-			ESP_LOGD("TCL", "Horizontal swing: righter");
-			break;
-	}
-	// Set fixation position for vertical louver
-	switch(vertical_direction_) {
-		case AirflowVerticalDirection::LAST:
-			dataTX[32]	+= 0b00000000;
-			ESP_LOGD("TCL", "Vertical fix: last position");
-			break;
-		case AirflowVerticalDirection::MAX_UP:
-			dataTX[32]	+= 0b00000001;
-			ESP_LOGD("TCL", "Vertical fix: up");
-			break;
-		case AirflowVerticalDirection::UP:
-			dataTX[32]	+= 0b00000010;
-			ESP_LOGD("TCL", "Vertical fix: upper");
-			break;
-		case AirflowVerticalDirection::CENTER:
-			dataTX[32]	+= 0b00000011;
-			ESP_LOGD("TCL", "Vertical fix: center");
-			break;
-		case AirflowVerticalDirection::DOWN:
-			dataTX[32]	+= 0b00000100;
-			ESP_LOGD("TCL", "Vertical fix: downer");
-			break;
-		case AirflowVerticalDirection::MAX_DOWN:
-			dataTX[32]	+= 0b00000101;
-			ESP_LOGD("TCL", "Vertical fix: down");
-			break;
-	}
-	// Set fixation position for horizontal louvers
-	switch(horizontal_direction_) {
-		case AirflowHorizontalDirection::LAST:
-			dataTX[33]	+= 0b00000000;
-			ESP_LOGD("TCL", "Horizontal fix: last position");
-			break;
-		case AirflowHorizontalDirection::MAX_LEFT:
-			dataTX[33]	+= 0b00000001;
-			ESP_LOGD("TCL", "Horizontal fix: left");
-			break;
-		case AirflowHorizontalDirection::LEFT:
-			dataTX[33]	+= 0b00000010;
-			ESP_LOGD("TCL", "Horizontal fix: lefter");
-			break;
-		case AirflowHorizontalDirection::CENTER:
-			dataTX[33]	+= 0b00000011;
-			ESP_LOGD("TCL", "Horizontal fix: center");
-			break;
-		case AirflowHorizontalDirection::RIGHT:
-			dataTX[33]	+= 0b00000100;
-			ESP_LOGD("TCL", "Horizontal fix: righter");
-			break;
-		case AirflowHorizontalDirection::MAX_RIGHT:
-			dataTX[33]	+= 0b00000101;
-			ESP_LOGD("TCL", "Horizontal fix: right");
-			break;
-	}
-
 	// Temperature setting
 	dataTX[9] = target_temperature_set;
 		
@@ -571,8 +425,6 @@ void tclacClimate::takeControl() {
 	dataTX[29] = 0x00;	//??
 	dataTX[30] = 0x00;	//??
 	dataTX[31] = 0x00;	//??
-	//dataTX[32] = 0x00;	//0,0,0,vertical swing mode(2),vertical fixation mode(3)
-	//dataTX[33] = 0x00;	//0,0,horizontal swing mode(3),horizontal fixation mode(3)
 	dataTX[34] = 0x00;	//??
 	dataTX[35] = 0x00;	//??
 	dataTX[36] = 0x00;	//??
@@ -586,12 +438,10 @@ void tclacClimate::takeControl() {
 
 // Sending data to the air conditioner
 void tclacClimate::sendData(uint8_t * message, uint8_t size) {
-	tclacClimate::dataShow(1,1);
 	//Serial.write(message, size);
 	this->esphome::uart::UARTDevice::write_array(message, size);
 	auto raw = getHex(message, size);
 	ESP_LOGD("TCL", "TX: %s", raw.c_str());
-	tclacClimate::dataShow(1,0);
 }
 
 // Converting byte array to hex string
@@ -612,34 +462,6 @@ uint8_t tclacClimate::getChecksum(const uint8_t * message, size_t size) {
 	for (int i = 0; i < position; i++)
 		crc ^= message[i];
 	return crc;
-}
-
-// Blink LEDs
-void tclacClimate::dataShow(bool flow, bool shine) {
-	if (module_display_status_){
-		if (flow == 0){
-			if (shine == 1){
-#ifdef CONF_RX_LED
-				this->rx_led_pin_->digital_write(true);
-#endif
-			} else {
-#ifdef CONF_RX_LED
-				this->rx_led_pin_->digital_write(false);
-#endif
-			}
-		}
-		if (flow == 1) {
-			if (shine == 1){
-#ifdef CONF_TX_LED
-				this->tx_led_pin_->digital_write(true);
-#endif
-			} else {
-#ifdef CONF_TX_LED
-				this->tx_led_pin_->digital_write(false);
-#endif
-			}
-		}
-	}
 }
 
 // Actions with data from config
@@ -666,62 +488,10 @@ void tclacClimate::set_display_state(bool disp_state) {
 void tclacClimate::set_force_mode_state(bool f_state) {
 	this->force_mode_status_ = f_state;
 }
-// Getting RX LED pin
-#ifdef CONF_RX_LED
-void tclacClimate::set_rx_led_pin(GPIOPin *rx_led_pin) {
-	this->rx_led_pin_ = rx_led_pin;
-}
-#endif
-// Getting TX LED pin
-#ifdef CONF_TX_LED
-void tclacClimate::set_tx_led_pin(GPIOPin *tx_led_pin) {
-	this->tx_led_pin_ = tx_led_pin;
-}
-#endif
-// Getting module communication LEDs state
-void tclacClimate::set_module_display_state(bool d_state) {
-	this->module_display_status_ = d_state;
-}
-// Getting vertical airflow fixation mode
-void tclacClimate::set_vertical_airflow(AirflowVerticalDirection v_airflow) {
-	this->vertical_direction_ = v_airflow;
-	if (force_mode_status_){
-		if (allow_take_control){
-			tclacClimate::takeControl();
-		}
-	}
-}
-// Getting horizontal airflow fixation mode
-void tclacClimate::set_horizontal_airflow(AirflowHorizontalDirection h_airflow) {
-	this->horizontal_direction_ = h_airflow;
-	if (force_mode_status_){
-		if (allow_take_control){
-			tclacClimate::takeControl();
-		}
-	}
-}
-// Getting vertical swing direction mode
-void tclacClimate::set_vertical_swing_direction(VerticalSwingDirection vs_direction) {
-	this->vertical_swing_direction_ = vs_direction;
-	if (force_mode_status_){
-		if (allow_take_control){
-			tclacClimate::takeControl();
-		}
-	}
-}
 // Getting available air conditioner operation modes
 void tclacClimate::set_supported_modes(climate::ClimateModeMask modes) {
 	this->supported_modes_ = modes;
 	ESP_LOGD("TCL", "Set up Modes");
-}
-// Getting horizontal swing direction mode
-void tclacClimate::set_horizontal_swing_direction(HorizontalSwingDirection hs_direction) {
-	horizontal_swing_direction_ = hs_direction;
-	if (force_mode_status_){
-		if (allow_take_control){
-			tclacClimate::takeControl();
-		}
-	}
 }
 // Setting how many fan speed levels the unit supports (3 or 5)
 void tclacClimate::set_fan_speed_levels(uint8_t levels){

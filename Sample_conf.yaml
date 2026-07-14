@@ -8,8 +8,6 @@ substitutions:
   api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
   uart_rx: GPIO3
   uart_tx: GPIO1
-  receive_led: GPIO2
-  transmit_led: GPIO2
 
 packages:
   remote_package:

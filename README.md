@@ -85,46 +85,14 @@ In general- everything is the same as usual, the option for your platform is eas
 ## Configuration of Included Files
 To add or remove certain parts of the config, I decided to use included files- they are loaded by ESPHome automatically,
 if the server with Home Assistant has internet access. This approach allows you to edit and update not the entire config as a block,
-but in parts, without touching what works.
-Another plus- you don't need to comment or uncomment kilometer-long pieces of code, you don't need to know the markup, there is no need to count
-cursed spaces and so on. Everything is done by adding or removing links to files. So, this is what the block of included files looks like:
+but in parts, without touching what works. So, this is what the block of included files looks like:
 ```yaml
 packages:
   remote_package:
     url: https://github.com/chindocaine/tclac.git
     ref: master
     files:
-    # v - align lines with options at this position, otherwise it will glitch
       - packages/core.yaml # The core of all things
-      # - packages/leds.yaml
     refresh: 30s
 ```
-All included files are specified in the **files:** section. For it to work, it is necessary that there is at least
-```yaml
-- packages/core.yaml # The core of all things
-```
-All other modules are optional (their description is in the same file slightly above). It is **important** that all lines with files are aligned by
-the improvised mark that I specifically pointed out, otherwise ESPHome will have many questions for you. For example, **it should be like this:**
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/chindocaine/tclac.git
-    ref: master
-    files:
-    # v - align lines with options at this position, otherwise it will glitch
-      - packages/core.yaml # The core of all things
-      - packages/leds.yaml
-    refresh: 30s
-```
-And this is **incorrect:**
-```yaml
-packages:
-  remote_package:
-    url: https://github.com/chindocaine/tclac.git
-    ref: master
-    files:
-    # v - align lines with options at this position, otherwise it will glitch
-      - packages/core.yaml # The core of all things
-        - packages/leds.yaml
-    refresh: 30s
-```
+`packages/core.yaml` is the only required file.

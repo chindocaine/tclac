@@ -1,4 +1,4 @@
-﻿from esphome import automation, pins
+﻿from esphome import automation
 import esphome.codegen as cg
 import esphome.config_validation as cv
 from esphome.components import climate, uart
@@ -33,15 +33,8 @@ TCLAC_TARGET_TEMPERATURE_STEP = 1.0
 TCLAC_CURRENT_TEMPERATURE_STEP = 1.0
 
 CONF_FAN_SPEED_LEVELS = "fan_speed_levels"
-CONF_RX_LED = "rx_led"
-CONF_TX_LED = "tx_led"
 CONF_DISPLAY = "show_display"
 CONF_FORCE_MODE = "force_mode"
-CONF_VERTICAL_AIRFLOW = "vertical_airflow"
-CONF_MODULE_DISPLAY = "show_module_display"
-CONF_HORIZONTAL_AIRFLOW = "horizontal_airflow"
-CONF_VERTICAL_SWING_MODE = "vertical_swing_mode"
-CONF_HORIZONTAL_SWING_MODE = "horizontal_swing_mode"
 
 tclac_ns = cg.esphome_ns.namespace("tclac")
 tclacClimate = tclac_ns.class_("tclacClimate", uart.UARTDevice, climate.Climate, cg.PollingComponent)
@@ -67,41 +60,6 @@ SUPPORTED_CLIMATE_PRESETS_OPTIONS = {
     "ECO": ClimatePreset.CLIMATE_PRESET_ECO,
     "SLEEP": ClimatePreset.CLIMATE_PRESET_SLEEP,
     "COMFORT": ClimatePreset.CLIMATE_PRESET_COMFORT,
-}
-
-VerticalSwingDirection = tclac_ns.enum("VerticalSwingDirection", True)
-VERTICAL_SWING_DIRECTION_OPTIONS = {
-    "UP_DOWN": VerticalSwingDirection.UP_DOWN,
-    "UPSIDE": VerticalSwingDirection.UPSIDE,
-    "DOWNSIDE": VerticalSwingDirection.DOWNSIDE,
-}
-
-HorizontalSwingDirection = tclac_ns.enum("HorizontalSwingDirection", True)
-HORIZONTAL_SWING_DIRECTION_OPTIONS = {
-    "LEFT_RIGHT": HorizontalSwingDirection.LEFT_RIGHT,
-    "LEFTSIDE": HorizontalSwingDirection.LEFTSIDE,
-    "CENTER": HorizontalSwingDirection.CENTER,
-    "RIGHTSIDE": HorizontalSwingDirection.RIGHTSIDE,
-}
-
-AirflowVerticalDirection = tclac_ns.enum("AirflowVerticalDirection", True)
-AIRFLOW_VERTICAL_DIRECTION_OPTIONS = {
-    "LAST": AirflowVerticalDirection.LAST,
-    "MAX_UP": AirflowVerticalDirection.MAX_UP,
-    "UP": AirflowVerticalDirection.UP,
-    "CENTER": AirflowVerticalDirection.CENTER,
-    "DOWN": AirflowVerticalDirection.DOWN,
-    "MAX_DOWN": AirflowVerticalDirection.MAX_DOWN,
-}
-
-AirflowHorizontalDirection = tclac_ns.enum("AirflowHorizontalDirection", True)
-AIRFLOW_HORIZONTAL_DIRECTION_OPTIONS = {
-    "LAST": AirflowHorizontalDirection.LAST,
-    "MAX_LEFT": AirflowHorizontalDirection.MAX_LEFT,
-    "LEFT": AirflowHorizontalDirection.LEFT,
-    "CENTER": AirflowHorizontalDirection.CENTER,
-    "RIGHT": AirflowHorizontalDirection.RIGHT,
-    "MAX_RIGHT": AirflowHorizontalDirection.MAX_RIGHT,
 }
 
 # UI configuration check and taking default values
@@ -137,14 +95,7 @@ CONFIG_SCHEMA = cv.All(
         {
             cv.Optional(CONF_BEEPER, default=True): cv.boolean,
             cv.Optional(CONF_DISPLAY, default=True): cv.boolean,
-            cv.Optional(CONF_RX_LED): pins.gpio_output_pin_schema,
-            cv.Optional(CONF_TX_LED): pins.gpio_output_pin_schema,
             cv.Optional(CONF_FORCE_MODE, default=True): cv.boolean,
-            cv.Optional(CONF_MODULE_DISPLAY, default=True): cv.boolean,
-            cv.Optional(CONF_VERTICAL_AIRFLOW, default="CENTER"): cv.ensure_list(cv.enum(AIRFLOW_VERTICAL_DIRECTION_OPTIONS, upper=True)),
-            cv.Optional(CONF_VERTICAL_SWING_MODE, default="UP_DOWN"): cv.ensure_list(cv.enum(VERTICAL_SWING_DIRECTION_OPTIONS, upper=True)),
-            cv.Optional(CONF_HORIZONTAL_AIRFLOW, default="CENTER"): cv.ensure_list(cv.enum(AIRFLOW_HORIZONTAL_DIRECTION_OPTIONS, upper=True)),
-            cv.Optional(CONF_HORIZONTAL_SWING_MODE, default="LEFT_RIGHT"): cv.ensure_list(cv.enum(HORIZONTAL_SWING_DIRECTION_OPTIONS, upper=True)),
             cv.Optional(CONF_SUPPORTED_PRESETS,default=["NONE","ECO","SLEEP","COMFORT",],): cv.ensure_list(cv.enum(SUPPORTED_CLIMATE_PRESETS_OPTIONS, upper=True)),
             cv.Optional(CONF_SUPPORTED_SWING_MODES,default=["OFF","VERTICAL","HORIZONTAL","BOTH",],): cv.ensure_list(cv.enum(SUPPORTED_SWING_MODES_OPTIONS, upper=True)),
             cv.Optional(CONF_SUPPORTED_MODES,default=["OFF","AUTO","COOL","HEAT","DRY","FAN_ONLY",],): cv.ensure_list(cv.enum(SUPPORTED_CLIMATE_MODES_OPTIONS, upper=True)),
@@ -162,12 +113,6 @@ BeeperOnAction = tclac_ns.class_("BeeperOnAction", automation.Action)
 BeeperOffAction = tclac_ns.class_("BeeperOffAction", automation.Action)
 DisplayOnAction = tclac_ns.class_("DisplayOnAction", automation.Action)
 DisplayOffAction = tclac_ns.class_("DisplayOffAction", automation.Action)
-ModuleDisplayOnAction = tclac_ns.class_("ModuleDisplayOnAction", automation.Action)
-VerticalAirflowAction = tclac_ns.class_("VerticalAirflowAction", automation.Action)
-ModuleDisplayOffAction = tclac_ns.class_("ModuleDisplayOffAction", automation.Action)
-HorizontalAirflowAction = tclac_ns.class_("HorizontalAirflowAction", automation.Action)
-VerticalSwingDirectionAction = tclac_ns.class_("VerticalSwingDirectionAction", automation.Action)
-HorizontalSwingDirectionAction = tclac_ns.class_("HorizontalSwingDirectionAction", automation.Action)
 
 TCLAC_ACTION_BASE_SCHEMA = automation.maybe_simple_id({cv.GenerateID(CONF_ID): cv.use_id(tclacClimate),})
 
@@ -195,18 +140,6 @@ async def beeper_action_to_code(config, action_id, template_arg, args):
     var = cg.new_Pvariable(action_id, template_arg, paren)
     return var
 
-# Registration of module communication LED on and off events
-@automation.register_action(
-    "climate.tclac.module_display_on", ModuleDisplayOnAction, cv.Schema, synchronous=True
-)
-@automation.register_action(
-    "climate.tclac.module_display_off", ModuleDisplayOffAction, cv.Schema, synchronous=True
-)
-async def module_display_action_to_code(config, action_id, template_arg, args):
-    paren = await cg.get_variable(config[CONF_ID])
-    var = cg.new_Pvariable(action_id, template_arg, paren)
-    return var
-    
 # Registration of force mode on and off events
 @automation.register_action(
     "climate.tclac.force_mode_on", ForceOnAction, cv.Schema, synchronous=True
@@ -217,87 +150,6 @@ async def module_display_action_to_code(config, action_id, template_arg, args):
 async def force_mode_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, paren)
-    return var
-
-# Registration of vertical airflow fix event
-@automation.register_action(
-    "climate.tclac.set_vertical_airflow",
-    VerticalAirflowAction,
-    cv.Schema(
-        {
-            cv.GenerateID(): cv.use_id(tclacClimate),
-            cv.Required(CONF_VERTICAL_AIRFLOW): cv.templatable(cv.enum(AIRFLOW_VERTICAL_DIRECTION_OPTIONS, upper=True)),
-        }
-    ),
-    synchronous=True
-)
-async def tclac_set_vertical_airflow_to_code(config, action_id, template_arg, args):
-    paren = await cg.get_variable(config[CONF_ID])
-    var = cg.new_Pvariable(action_id, template_arg, paren)
-    template_ = await cg.templatable(
-        config[CONF_VERTICAL_AIRFLOW], args, AirflowVerticalDirection
-    )
-    cg.add(var.set_direction(template_))
-    return var
-
-
-# Registration of horizontal airflow fix event
-@automation.register_action(
-    "climate.tclac.set_horizontal_airflow",
-    HorizontalAirflowAction,
-    cv.Schema(
-        {
-            cv.GenerateID(): cv.use_id(tclacClimate),
-            cv.Required(CONF_HORIZONTAL_AIRFLOW): cv.templatable(cv.enum(AIRFLOW_HORIZONTAL_DIRECTION_OPTIONS, upper=True)),
-        }
-    ),
-    synchronous=True
-)
-async def tclac_set_horizontal_airflow_to_code(config, action_id, template_arg, args):
-    paren = await cg.get_variable(config[CONF_ID])
-    var = cg.new_Pvariable(action_id, template_arg, paren)
-    template_ = await cg.templatable(config[CONF_HORIZONTAL_AIRFLOW], args, AirflowHorizontalDirection)
-    cg.add(var.set_direction(template_))
-    return var
-
-
-# Registration of vertical swing direction event
-@automation.register_action(
-    "climate.tclac.set_vertical_swing_direction",
-    VerticalSwingDirectionAction,
-    cv.Schema(
-        {
-            cv.GenerateID(): cv.use_id(tclacClimate),
-            cv.Required(CONF_VERTICAL_SWING_MODE): cv.templatable(cv.enum(VERTICAL_SWING_DIRECTION_OPTIONS, upper=True)),
-        }
-    ),
-    synchronous=True
-)
-async def tclac_set_vertical_swing_direction_to_code(config, action_id, template_arg, args):
-    paren = await cg.get_variable(config[CONF_ID])
-    var = cg.new_Pvariable(action_id, template_arg, paren)
-    template_ = await cg.templatable(config[CONF_VERTICAL_SWING_MODE], args, VerticalSwingDirection)
-    cg.add(var.set_swing_direction(template_))
-    return var
-
-
-# Registration of horizontal swing direction event
-@automation.register_action(
-    "climate.tclac.set_horizontal_swing_direction",
-    HorizontalSwingDirectionAction,
-    cv.Schema(
-        {
-            cv.GenerateID(): cv.use_id(tclacClimate),
-            cv.Required(CONF_HORIZONTAL_SWING_MODE): cv.templatable(cv.enum(HORIZONTAL_SWING_DIRECTION_OPTIONS, upper=True)),
-        }
-    ),
-    synchronous=True
-)
-async def tclac_set_horizontal_swing_direction_to_code(config, action_id, template_arg, args):
-    paren = await cg.get_variable(config[CONF_ID])
-    var = cg.new_Pvariable(action_id, template_arg, paren)
-    template_ = await cg.templatable(config[CONF_HORIZONTAL_SWING_MODE], args, HorizontalSwingDirection)
-    cg.add(var.set_swing_direction(template_))
     return var
 
 
@@ -318,18 +170,7 @@ def to_code(config):
         cg.add(var.set_supported_modes(config[CONF_SUPPORTED_MODES]))
     if CONF_SUPPORTED_PRESETS in config:
         cg.add(var.set_supported_presets(config[CONF_SUPPORTED_PRESETS]))
-    if CONF_MODULE_DISPLAY in config:
-        cg.add(var.set_module_display_state(config[CONF_MODULE_DISPLAY]))
     if CONF_FAN_SPEED_LEVELS in config:
         cg.add(var.set_fan_speed_levels(config[CONF_FAN_SPEED_LEVELS]))
     if CONF_SUPPORTED_SWING_MODES in config:
         cg.add(var.set_supported_swing_modes(config[CONF_SUPPORTED_SWING_MODES]))
-
-    if CONF_TX_LED in config:
-        cg.add_define("CONF_TX_LED")
-        tx_led_pin = yield cg.gpio_pin_expression(config[CONF_TX_LED])
-        cg.add(var.set_tx_led_pin(tx_led_pin))
-    if CONF_RX_LED in config:
-        cg.add_define("CONF_RX_LED")
-        rx_led_pin = yield cg.gpio_pin_expression(config[CONF_RX_LED])
-        cg.add(var.set_rx_led_pin(rx_led_pin))
