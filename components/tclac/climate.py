@@ -13,7 +13,6 @@ from esphome.const import (
     CONF_TEMPERATURE_STEP,
     CONF_SUPPORTED_PRESETS,
     CONF_TARGET_TEMPERATURE,
-    CONF_SUPPORTED_FAN_MODES,
     CONF_SUPPORTED_SWING_MODES,
 )
 
@@ -33,6 +32,7 @@ TCLAC_MAX_TEMPERATURE = 31.0
 TCLAC_TARGET_TEMPERATURE_STEP = 1.0
 TCLAC_CURRENT_TEMPERATURE_STEP = 1.0
 
+CONF_FAN_SPEED_LEVELS = "fan_speed_levels"
 CONF_RX_LED = "rx_led"
 CONF_TX_LED = "tx_led"
 CONF_DISPLAY = "show_display"
@@ -45,17 +45,6 @@ CONF_HORIZONTAL_SWING_MODE = "horizontal_swing_mode"
 
 tclac_ns = cg.esphome_ns.namespace("tclac")
 tclacClimate = tclac_ns.class_("tclacClimate", uart.UARTDevice, climate.Climate, cg.PollingComponent)
-
-SUPPORTED_FAN_MODES_OPTIONS = {
-    "AUTO": ClimateMode.CLIMATE_FAN_AUTO,  # Always available
-    "QUIET": ClimateMode.CLIMATE_FAN_QUIET,
-    "LOW": ClimateMode.CLIMATE_FAN_LOW,
-    "MIDDLE": ClimateMode.CLIMATE_FAN_MIDDLE,
-    "MEDIUM": ClimateMode.CLIMATE_FAN_MEDIUM,
-    "HIGH": ClimateMode.CLIMATE_FAN_HIGH,
-    "FOCUS": ClimateMode.CLIMATE_FAN_FOCUS,
-    "DIFFUSE": ClimateMode.CLIMATE_FAN_DIFFUSE,
-}
 
 SUPPORTED_SWING_MODES_OPTIONS = {
     "OFF": ClimateSwingMode.CLIMATE_SWING_OFF,  # Always available
@@ -159,7 +148,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_SUPPORTED_PRESETS,default=["NONE","ECO","SLEEP","COMFORT",],): cv.ensure_list(cv.enum(SUPPORTED_CLIMATE_PRESETS_OPTIONS, upper=True)),
             cv.Optional(CONF_SUPPORTED_SWING_MODES,default=["OFF","VERTICAL","HORIZONTAL","BOTH",],): cv.ensure_list(cv.enum(SUPPORTED_SWING_MODES_OPTIONS, upper=True)),
             cv.Optional(CONF_SUPPORTED_MODES,default=["OFF","AUTO","COOL","HEAT","DRY","FAN_ONLY",],): cv.ensure_list(cv.enum(SUPPORTED_CLIMATE_MODES_OPTIONS, upper=True)),
-            cv.Optional(CONF_SUPPORTED_FAN_MODES,default=["AUTO","QUIET","LOW","MIDDLE","MEDIUM","HIGH","FOCUS","DIFFUSE",],): cv.ensure_list(cv.enum(SUPPORTED_FAN_MODES_OPTIONS, upper=True)),
+            cv.Optional(CONF_FAN_SPEED_LEVELS, default=5): cv.one_of(3, 5, int=True),
         }
     )
     .extend(uart.UART_DEVICE_SCHEMA)
@@ -331,8 +320,8 @@ def to_code(config):
         cg.add(var.set_supported_presets(config[CONF_SUPPORTED_PRESETS]))
     if CONF_MODULE_DISPLAY in config:
         cg.add(var.set_module_display_state(config[CONF_MODULE_DISPLAY]))
-    if CONF_SUPPORTED_FAN_MODES in config:
-        cg.add(var.set_supported_fan_modes(config[CONF_SUPPORTED_FAN_MODES]))
+    if CONF_FAN_SPEED_LEVELS in config:
+        cg.add(var.set_fan_speed_levels(config[CONF_FAN_SPEED_LEVELS]))
     if CONF_SUPPORTED_SWING_MODES in config:
         cg.add(var.set_supported_swing_modes(config[CONF_SUPPORTED_SWING_MODES]))
 
