@@ -1,24 +1,122 @@
-substitutions:
-  device_name: tclac
-  friendly_name: TCL Air Conditioner
-  wifi_ssid: !secret wifi_ssid
-  wifi_password: !secret wifi_password
-  recovery_pass: mKSzmBdt7DAj
-  ota_pass: 90cf525a594c8bb2cbf917bc2c2fa058
-  api_key: lmUoWsWs1oqSfJqLFsA6PisHSx4Y1G+iu7V3PDIqpXk=
-  uart_rx: GPIO3
-  uart_tx: GPIO1
-  receive_led: GPIO2
-  transmit_led: GPIO2
+esp8266:
+  board: esp01_1m
 
-packages:
-  remote_package:
-    url: https://github.com/chindocaine/tclac.git
-    ref: master
-    files:
-      - packages/core.yaml
-    refresh: 30s
+api:
+  encryption:
+    key: "..."
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  domain: .lan
+  ap:
+    ssid: TCL Air Conditioner Fallback
+    password: "..."
+
+captive_portal:
     
 esphome:
-  platform: ESP32
-  board: nodemcu-32s
+  name: tcl-air-conditioner
+  friendly_name: TCL Air Conditioner
+  min_version: 2025.11.0
+  on_boot:
+    priority: -100
+    then:
+      lambda: !lambda |-
+        id(air_conditioner).set_beeper_state(false);
+        id(air_conditioner).set_force_mode_state(false);
+
+        if (id(display_mode).state){
+          id(air_conditioner).set_display_state(true);
+        } else {
+          id(air_conditioner).set_display_state(false);
+        }
+        if (id(beep_mode).state){
+          id(air_conditioner).set_beeper_state(true);
+        } else {
+          id(air_conditioner).set_beeper_state(false);
+        }
+        if (id(force_mode).state){
+          id(air_conditioner).set_force_mode_state(true);
+        } else {
+          id(air_conditioner).set_force_mode_state(false);
+        }
+
+uart:
+  baud_rate: 9600
+  data_bits: 8
+  parity: EVEN
+  stop_bits: 1
+  rx_pin: GPIO13
+  tx_pin: GPIO15
+
+external_components:
+  - source:
+      url: https://github.com/chindocaine/tclac.git
+      type: git
+      ref: master
+    components: [ tclac ]
+    refresh: 30s
+
+# MUST disable logging via UART
+logger:
+  baud_rate: 0
+
+switch:
+  - name: Beeper
+    platform: template
+    device_class: switch
+    id: beep_mode
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+    optimistic: true
+    on_turn_on:
+      then:
+        lambda: !lambda |-
+          id(air_conditioner).set_beeper_state(true);
+    on_turn_off:
+      then:
+        lambda: !lambda |-
+          id(air_conditioner).set_beeper_state(false);
+
+  - name: Display
+    platform: template
+    device_class: switch
+    id: display_mode
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+    optimistic: true
+    on_turn_on:
+      then:
+        lambda: !lambda |-
+          id(air_conditioner).set_display_state(true);
+    on_turn_off:
+      then:
+        lambda: !lambda |-
+          id(air_conditioner).set_display_state(false);
+
+  - name: Force config
+    platform: template
+    device_class: switch
+    id: force_mode
+    entity_category: config
+    restore_mode: RESTORE_DEFAULT_ON
+    optimistic: true
+    on_turn_on:
+      then:
+        lambda: !lambda |-
+          id(air_conditioner).set_force_mode_state(true);
+    on_turn_off:
+      then:
+        lambda: !lambda |-
+          id(air_conditioner).set_force_mode_state(false);
+
+climate:
+  - platform: tclac
+    name: "Air Conditioner"
+    id: air_conditioner
+    fan_speed_levels: 5
