@@ -55,6 +55,16 @@ static const char *const FAN_MODE_LOW_MEDIUM = "Low Medium";
 static const char *const FAN_MODE_MEDIUM_HIGH = "Medium High";
 static const char *const FAN_MODE_POWER = "Turbo";
 
+// "Gentle Breeze" has no equivalent in ESPHome's built-in ClimatePreset enum
+// (NONE/HOME/AWAY/BOOST/COMFORT/ECO/SLEEP/ACTIVITY), so - like the fan modes
+// above - it is exposed as a custom preset instead.
+// TX: dataTX[10] bit 0b01000000. RX: dataRX[50] bit 0b00100000.
+// Both bits verified on hardware (UART capture, 2026-07-16) on a 5-level unit.
+static const char *const PRESET_GENTLE_BREEZE = "Gentle Breeze";
+#define GENTLE_BREEZE_TX_BIT	0b01000000
+#define GENTLE_BREEZE_RX_POS	50
+#define GENTLE_BREEZE_RX_BIT	0b00100000
+
 #define SWING_POS			10
 #define SWING_OFF			0b00000000
 #define SWING_HORIZONTAL	0b00100000
@@ -113,6 +123,7 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		static String getHex(uint8_t *message, uint8_t size);
 		static uint8_t getChecksum(const uint8_t * message, size_t size);
 		void set_supported_presets(climate::ClimatePresetMask presets);
+		void set_supported_custom_presets_option(std::vector<std::string> presets);
 		void set_supported_modes(climate::ClimateModeMask modes);
 		void set_supported_swing_modes(climate::ClimateSwingModeMask swing_modes);
 		void set_fan_speed_levels(uint8_t levels);
@@ -121,6 +132,7 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		ClimateTraits traits() override;
 		climate::ClimateModeMask supported_modes_{};
 		climate::ClimatePresetMask supported_presets_{};
+		std::vector<std::string> supported_custom_presets_{PRESET_GENTLE_BREEZE};
 		climate::ClimateSwingModeMask supported_swing_modes_{};
 		void control(const climate::ClimateCall &call) override;
 		uint8_t encode_fan_speed_tx_(uint8_t code) const;

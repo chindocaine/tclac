@@ -120,3 +120,5 @@ climate:
     name: "Air Conditioner"
     id: air_conditioner
     fan_speed_levels: 5
+    supported_custom_presets:
+      - GENTLE_BREEZE

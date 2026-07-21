@@ -62,6 +62,13 @@ SUPPORTED_CLIMATE_PRESETS_OPTIONS = {
     "COMFORT": ClimatePreset.CLIMATE_PRESET_COMFORT,
 }
 
+CONF_SUPPORTED_CUSTOM_PRESETS = "supported_custom_presets"
+
+# Value must match PRESET_GENTLE_BREEZE in tclac.h
+SUPPORTED_CUSTOM_PRESETS_OPTIONS = {
+    "GENTLE_BREEZE": "Gentle Breeze",
+}
+
 # UI configuration check and taking default values
 def validate_visual(config):
     if CONF_VISUAL in config:
@@ -97,6 +104,7 @@ CONFIG_SCHEMA = cv.All(
             cv.Optional(CONF_DISPLAY, default=True): cv.boolean,
             cv.Optional(CONF_FORCE_MODE, default=True): cv.boolean,
             cv.Optional(CONF_SUPPORTED_PRESETS,default=["NONE","ECO","SLEEP","COMFORT",],): cv.ensure_list(cv.enum(SUPPORTED_CLIMATE_PRESETS_OPTIONS, upper=True)),
+            cv.Optional(CONF_SUPPORTED_CUSTOM_PRESETS,default=["GENTLE_BREEZE",],): cv.ensure_list(cv.enum(SUPPORTED_CUSTOM_PRESETS_OPTIONS, upper=True)),
             cv.Optional(CONF_SUPPORTED_SWING_MODES,default=["OFF","VERTICAL","HORIZONTAL","BOTH",],): cv.ensure_list(cv.enum(SUPPORTED_SWING_MODES_OPTIONS, upper=True)),
             cv.Optional(CONF_SUPPORTED_MODES,default=["OFF","AUTO","COOL","HEAT","DRY","FAN_ONLY",],): cv.ensure_list(cv.enum(SUPPORTED_CLIMATE_MODES_OPTIONS, upper=True)),
             cv.Optional(CONF_FAN_SPEED_LEVELS, default=5): cv.one_of(3, 5, int=True),
@@ -170,6 +178,8 @@ def to_code(config):
         cg.add(var.set_supported_modes(config[CONF_SUPPORTED_MODES]))
     if CONF_SUPPORTED_PRESETS in config:
         cg.add(var.set_supported_presets(config[CONF_SUPPORTED_PRESETS]))
+    if CONF_SUPPORTED_CUSTOM_PRESETS in config:
+        cg.add(var.set_supported_custom_presets_option(config[CONF_SUPPORTED_CUSTOM_PRESETS]))
     if CONF_FAN_SPEED_LEVELS in config:
         cg.add(var.set_fan_speed_levels(config[CONF_FAN_SPEED_LEVELS]))
     if CONF_SUPPORTED_SWING_MODES in config:

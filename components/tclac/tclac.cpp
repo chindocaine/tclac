@@ -4,6 +4,7 @@
 * Refactoring & component making:
 * Nightingale with a soldering iron 15.03.2024
 **/
+#include <algorithm>
 #include "esphome.h"
 #include "esphome/core/defines.h"
 #include "tclac.h"
@@ -59,6 +60,8 @@ void tclacClimate::setup() {
 	if (this->fan_speed_levels_ == 5) custom_fan_modes.push_back(FAN_MODE_MEDIUM_HIGH);
 	custom_fan_modes.push_back(FAN_MODE_POWER);
 	this->set_supported_custom_fan_modes(custom_fan_modes);
+
+	this->set_supported_custom_presets(this->supported_custom_presets_);
 }
 
 void tclacClimate::loop()  {
@@ -218,13 +221,21 @@ void tclacClimate::readData() {
 		}
 		
 		// Preset data processing
-		preset = ClimatePreset::CLIMATE_PRESET_NONE;
+		// Uses the set_preset_()/set_custom_preset_() helpers (rather than
+		// assigning the `preset` field directly) so switching between a
+		// built-in preset and the custom "Gentle Breeze" preset correctly
+		// clears whichever one was previously active.
 		if (dataRX[7] & (1 << 6)){
-			preset = ClimatePreset::CLIMATE_PRESET_ECO;
+			this->set_preset_(ClimatePreset::CLIMATE_PRESET_ECO);
 		} else if (dataRX[9] & (1 << 2)){
-			preset = ClimatePreset::CLIMATE_PRESET_COMFORT;
+			this->set_preset_(ClimatePreset::CLIMATE_PRESET_COMFORT);
 		} else if (dataRX[19] & (1 << 0)){
-			preset = ClimatePreset::CLIMATE_PRESET_SLEEP;
+			this->set_preset_(ClimatePreset::CLIMATE_PRESET_SLEEP);
+		} else if ((dataRX[GENTLE_BREEZE_RX_POS] & GENTLE_BREEZE_RX_BIT) &&
+				std::find(this->supported_custom_presets_.begin(), this->supported_custom_presets_.end(), PRESET_GENTLE_BREEZE) != this->supported_custom_presets_.end()){
+			this->set_custom_preset_(PRESET_GENTLE_BREEZE);
+		} else {
+			this->set_preset_(ClimatePreset::CLIMATE_PRESET_NONE);
 		}
 		
 	} else {
@@ -233,7 +244,7 @@ void tclacClimate::readData() {
 		this->mode = climate::CLIMATE_MODE_OFF;
 		//fan_mode = climate::CLIMATE_FAN_OFF;
 		this->swing_mode = climate::CLIMATE_SWING_OFF;
-		this->preset = ClimatePreset::CLIMATE_PRESET_NONE;
+		this->set_preset_(ClimatePreset::CLIMATE_PRESET_NONE);
 	}
 	// Publish state
 	this->publish_state();
@@ -252,7 +263,8 @@ void tclacClimate::control(const climate::ClimateCall &call) {
     if (call.get_fan_mode().has_value()) this->set_fan_mode_(*call.get_fan_mode());
     if (call.has_custom_fan_mode()) this->set_custom_fan_mode_(call.get_custom_fan_mode());
 	if (call.get_swing_mode().has_value()) this->swing_mode = *call.get_swing_mode();
-	if (call.get_preset().has_value()) this->preset = *call.get_preset();
+	if (call.get_preset().has_value()) this->set_preset_(*call.get_preset());
+	if (call.has_custom_preset()) this->set_custom_preset_(call.get_custom_preset());
 	
 	this->publish_state();
 	this->takeControl();
@@ -373,7 +385,12 @@ void tclacClimate::takeControl() {
 	}
 	
 	// Set air conditioner presets
-	if (this->preset.has_value()) {
+	if (this->has_custom_preset()) {
+		esphome::StringRef custom_preset = this->get_custom_preset();
+		if (custom_preset == PRESET_GENTLE_BREEZE) {
+			dataTX[10]	+= GENTLE_BREEZE_TX_BIT;
+		}
+	} else if (this->preset.has_value()) {
 		switch(*this->preset) {
 			case ClimatePreset::CLIMATE_PRESET_NONE:
 				break;
@@ -521,6 +538,10 @@ void tclacClimate::set_supported_swing_modes(climate::ClimateSwingModeMask swing
 // Getting available presets
 void tclacClimate::set_supported_presets(climate::ClimatePresetMask presets) {
   this->supported_presets_ = presets;
+}
+// Getting available custom presets
+void tclacClimate::set_supported_custom_presets_option(std::vector<std::string> presets) {
+  this->supported_custom_presets_ = presets;
 }
 
 
