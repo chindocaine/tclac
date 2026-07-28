@@ -61,7 +61,11 @@ void tclacClimate::setup() {
 	custom_fan_modes.push_back(FAN_MODE_POWER);
 	this->set_supported_custom_fan_modes(custom_fan_modes);
 
-	this->set_supported_custom_presets(this->supported_custom_presets_);
+	// set_supported_custom_presets() (the base Climate one, below) only accepts
+	// const char* pointers, not std::string, so re-point into our own storage.
+	std::vector<const char *> custom_presets;
+	for (const auto &preset : this->supported_custom_presets_) custom_presets.push_back(preset.c_str());
+	this->set_supported_custom_presets(custom_presets);
 }
 
 void tclacClimate::loop()  {
