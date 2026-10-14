@@ -72,6 +72,29 @@ static const char *const PRESET_GENTLE_BREEZE = "Gentle Breeze";
 #define SWING_BOTH			0b01100000
 #define SWING_MODE_MASK		0b01100000
 
+// Fixed louver positions ("fixation" in TCL's own terminology). TX-only: no RX
+// bits are known for these, so they can't be reflected back into the climate
+// entity's swing_mode - set_vertical_direction()/set_horizontal_direction()
+// force swing_mode to OFF instead whenever one of these is applied.
+// dataTX[32] bits 0b00000111 (vertical), dataTX[33] bits 0b00000111 (horizontal).
+enum class AirflowVerticalDirection {
+	LAST = 0,
+	MAX_UP,
+	UP,
+	CENTER,
+	DOWN,
+	MAX_DOWN,
+};
+
+enum class AirflowHorizontalDirection {
+	LAST = 0,
+	MAX_LEFT,
+	LEFT,
+	CENTER,
+	RIGHT,
+	MAX_RIGHT,
+};
+
 using climate::ClimateCall;
 using climate::ClimateMode;
 using climate::ClimatePreset;
@@ -127,6 +150,8 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		void set_supported_modes(climate::ClimateModeMask modes);
 		void set_supported_swing_modes(climate::ClimateSwingModeMask swing_modes);
 		void set_fan_speed_levels(uint8_t levels);
+		void set_vertical_direction(AirflowVerticalDirection direction);
+		void set_horizontal_direction(AirflowHorizontalDirection direction);
 
 	protected:
 		ClimateTraits traits() override;
@@ -134,6 +159,8 @@ class tclacClimate : public climate::Climate, public esphome::uart::UARTDevice, 
 		climate::ClimatePresetMask supported_presets_{};
 		std::vector<std::string> supported_custom_presets_{PRESET_GENTLE_BREEZE};
 		climate::ClimateSwingModeMask supported_swing_modes_{};
+		AirflowVerticalDirection vertical_direction_ = AirflowVerticalDirection::LAST;
+		AirflowHorizontalDirection horizontal_direction_ = AirflowHorizontalDirection::LAST;
 		void control(const climate::ClimateCall &call) override;
 		uint8_t encode_fan_speed_tx_(uint8_t code) const;
 };

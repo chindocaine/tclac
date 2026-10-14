@@ -66,5 +66,29 @@ template<typename... Ts> class ForceOffAction : public Action<Ts...> {
   tclacClimate *parent_;
 };
 
+// Action template: set a fixed vertical louver position
+template<typename... Ts> class SetVerticalDirectionAction : public Action<Ts...> {
+ public:
+  SetVerticalDirectionAction(tclacClimate *parent) : parent_(parent) {}
+  void set_direction(AirflowVerticalDirection direction) { this->direction_ = direction; }
+  void play(Ts... x) { this->parent_->set_vertical_direction(this->direction_); }
+
+ protected:
+  tclacClimate *parent_;
+  AirflowVerticalDirection direction_;
+};
+
+// Action template: set a fixed horizontal louver position
+template<typename... Ts> class SetHorizontalDirectionAction : public Action<Ts...> {
+ public:
+  SetHorizontalDirectionAction(tclacClimate *parent) : parent_(parent) {}
+  void set_direction(AirflowHorizontalDirection direction) { this->direction_ = direction; }
+  void play(Ts... x) { this->parent_->set_horizontal_direction(this->direction_); }
+
+ protected:
+  tclacClimate *parent_;
+  AirflowHorizontalDirection direction_;
+};
+
 }  // namespace tclac
 }  // namespace esphome

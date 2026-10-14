@@ -121,8 +121,34 @@ BeeperOnAction = tclac_ns.class_("BeeperOnAction", automation.Action)
 BeeperOffAction = tclac_ns.class_("BeeperOffAction", automation.Action)
 DisplayOnAction = tclac_ns.class_("DisplayOnAction", automation.Action)
 DisplayOffAction = tclac_ns.class_("DisplayOffAction", automation.Action)
+SetVerticalDirectionAction = tclac_ns.class_("SetVerticalDirectionAction", automation.Action)
+SetHorizontalDirectionAction = tclac_ns.class_("SetHorizontalDirectionAction", automation.Action)
 
 TCLAC_ACTION_BASE_SCHEMA = automation.maybe_simple_id({cv.GenerateID(CONF_ID): cv.use_id(tclacClimate),})
+
+CONF_DIRECTION = "direction"
+
+# Values must match AirflowVerticalDirection in tclac.h
+AirflowVerticalDirection = tclac_ns.enum("AirflowVerticalDirection", is_class=True)
+AIRFLOW_VERTICAL_DIRECTIONS = {
+    "LAST": AirflowVerticalDirection.LAST,
+    "MAX_UP": AirflowVerticalDirection.MAX_UP,
+    "UP": AirflowVerticalDirection.UP,
+    "CENTER": AirflowVerticalDirection.CENTER,
+    "DOWN": AirflowVerticalDirection.DOWN,
+    "MAX_DOWN": AirflowVerticalDirection.MAX_DOWN,
+}
+
+# Values must match AirflowHorizontalDirection in tclac.h
+AirflowHorizontalDirection = tclac_ns.enum("AirflowHorizontalDirection", is_class=True)
+AIRFLOW_HORIZONTAL_DIRECTIONS = {
+    "LAST": AirflowHorizontalDirection.LAST,
+    "MAX_LEFT": AirflowHorizontalDirection.MAX_LEFT,
+    "LEFT": AirflowHorizontalDirection.LEFT,
+    "CENTER": AirflowHorizontalDirection.CENTER,
+    "RIGHT": AirflowHorizontalDirection.RIGHT,
+    "MAX_RIGHT": AirflowHorizontalDirection.MAX_RIGHT,
+}
 
 # Registration of air conditioner display on and off events
 @automation.register_action(
@@ -158,6 +184,43 @@ async def beeper_action_to_code(config, action_id, template_arg, args):
 async def force_mode_action_to_code(config, action_id, template_arg, args):
     paren = await cg.get_variable(config[CONF_ID])
     var = cg.new_Pvariable(action_id, template_arg, paren)
+    return var
+
+# Registration of the fixed vertical/horizontal louver position actions.
+# These bypass swing_mode entirely (there's no RX feedback for the fixed position,
+# so the climate entity's swing_mode is forced to OFF instead - see tclac.cpp).
+@automation.register_action(
+    "climate.tclac.set_vertical_direction",
+    SetVerticalDirectionAction,
+    cv.Schema(
+        {
+            cv.GenerateID(CONF_ID): cv.use_id(tclacClimate),
+            cv.Required(CONF_DIRECTION): cv.enum(AIRFLOW_VERTICAL_DIRECTIONS, upper=True),
+        }
+    ),
+    synchronous=True,
+)
+async def set_vertical_direction_action_to_code(config, action_id, template_arg, args):
+    paren = await cg.get_variable(config[CONF_ID])
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    cg.add(var.set_direction(config[CONF_DIRECTION]))
+    return var
+
+@automation.register_action(
+    "climate.tclac.set_horizontal_direction",
+    SetHorizontalDirectionAction,
+    cv.Schema(
+        {
+            cv.GenerateID(CONF_ID): cv.use_id(tclacClimate),
+            cv.Required(CONF_DIRECTION): cv.enum(AIRFLOW_HORIZONTAL_DIRECTIONS, upper=True),
+        }
+    ),
+    synchronous=True,
+)
+async def set_horizontal_direction_action_to_code(config, action_id, template_arg, args):
+    paren = await cg.get_variable(config[CONF_ID])
+    var = cg.new_Pvariable(action_id, template_arg, paren)
+    cg.add(var.set_direction(config[CONF_DIRECTION]))
     return var
 
 

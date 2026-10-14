@@ -384,10 +384,55 @@ void tclacClimate::takeControl() {
 			break;
 		case climate::CLIMATE_SWING_BOTH:
 			dataTX[10]	+= 0b00111000;
-			dataTX[11]	+= 0b00001000;  
+			dataTX[11]	+= 0b00001000;
 			break;
 	}
-	
+
+	// Fixed vertical louver position ("fixation"). Only takes effect while vertical
+	// swing is disabled per TCL's protocol, but harmless to send regardless.
+	switch (this->vertical_direction_) {
+		case AirflowVerticalDirection::LAST:
+			dataTX[32]	+= 0b00000000;
+			break;
+		case AirflowVerticalDirection::MAX_UP:
+			dataTX[32]	+= 0b00000001;
+			break;
+		case AirflowVerticalDirection::UP:
+			dataTX[32]	+= 0b00000010;
+			break;
+		case AirflowVerticalDirection::CENTER:
+			dataTX[32]	+= 0b00000011;
+			break;
+		case AirflowVerticalDirection::DOWN:
+			dataTX[32]	+= 0b00000100;
+			break;
+		case AirflowVerticalDirection::MAX_DOWN:
+			dataTX[32]	+= 0b00000101;
+			break;
+	}
+	// Fixed horizontal louver position ("fixation"). Only takes effect while horizontal
+	// swing is disabled per TCL's protocol, but harmless to send regardless.
+	switch (this->horizontal_direction_) {
+		case AirflowHorizontalDirection::LAST:
+			dataTX[33]	+= 0b00000000;
+			break;
+		case AirflowHorizontalDirection::MAX_LEFT:
+			dataTX[33]	+= 0b00000001;
+			break;
+		case AirflowHorizontalDirection::LEFT:
+			dataTX[33]	+= 0b00000010;
+			break;
+		case AirflowHorizontalDirection::CENTER:
+			dataTX[33]	+= 0b00000011;
+			break;
+		case AirflowHorizontalDirection::RIGHT:
+			dataTX[33]	+= 0b00000100;
+			break;
+		case AirflowHorizontalDirection::MAX_RIGHT:
+			dataTX[33]	+= 0b00000101;
+			break;
+	}
+
 	// Set air conditioner presets
 	if (this->has_custom_preset()) {
 		esphome::StringRef custom_preset = this->get_custom_preset();
@@ -546,6 +591,22 @@ void tclacClimate::set_supported_presets(climate::ClimatePresetMask presets) {
 // Getting available custom presets
 void tclacClimate::set_supported_custom_presets_option(std::vector<std::string> presets) {
   this->supported_custom_presets_ = presets;
+}
+// Setting a fixed vertical louver position. There's no RX bit to read the fixed
+// position back into the climate entity, so swing_mode is forced to OFF instead -
+// it'll stay in this position until changed again by another call to this action.
+void tclacClimate::set_vertical_direction(AirflowVerticalDirection direction) {
+	this->vertical_direction_ = direction;
+	this->swing_mode = climate::CLIMATE_SWING_OFF;
+	this->publish_state();
+	this->takeControl();
+}
+// Setting a fixed horizontal louver position. Same reasoning as set_vertical_direction().
+void tclacClimate::set_horizontal_direction(AirflowHorizontalDirection direction) {
+	this->horizontal_direction_ = direction;
+	this->swing_mode = climate::CLIMATE_SWING_OFF;
+	this->publish_state();
+	this->takeControl();
 }
 
 
